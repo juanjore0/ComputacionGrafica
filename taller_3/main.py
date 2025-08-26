@@ -88,7 +88,6 @@ def main():
             loaded_arr = np.load('mi_array.npy')
             print("Arreglo cargado:", loaded_arr)
 
-        
         elif op == 8:
             print("Adios")
             break
