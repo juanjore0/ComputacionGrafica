@@ -1,4 +1,3 @@
-import funciones as functions
 import numpy as np
 
 def main():
