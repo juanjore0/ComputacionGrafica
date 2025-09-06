@@ -73,4 +73,3 @@ print("Vector C:", C_multiplied)
 #18. Cambiar elementos del 14 al 16 (índices 13:16)
 C_multiplied[13:16] = [140, 150, 160]
 print("Vector C:", C_multiplied)
-
