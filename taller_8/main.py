@@ -1,24 +1,72 @@
-import numpy as np
-import matplotlib.pyplot as plt
-matriz=np.zeros((3,3,3))
+import imagen_function as ip
 
-print(matriz)
-matriz[0,0,1]=matriz[0,0,2]=1 #cyan
-matriz[0,1,0]=matriz[0,1,1]=matriz[0,1,2]=1 #blanco
-matriz[0,2,0]=1 #rojo
+def menu():
+    print("Elija una opcion: ")
+    print("1. Matriz de colores")
+    print("2. Matriz de colores con filtro")
+    print("3. Invertir colores de una imágen")
+    print("4. Capa roja de una imágen")
+    print("5. Capa verde de una imágen")
+    print("6. Capa azul de una imágen") 
+    print("7. Capa magenta de una imágen")
+    print("8. Capa cyan de una imágen")
+    print("9. Capa amarilla de una imágen")
+    print("10. Sumar capas de una imágen")
+    print("11. Fusionar imágenes")
+    print("12. Ecualizar imágenes")
+    print("13. Ecualizar imágen individual")
+    print("14. Promediar imágen")
+    print("15. Escala de grises por average")
+    print("16. Escala de grises por luminosity")
+    print("17. Escala de grises por midgray")
+    print("18. Salir")
 
-matriz[1,0,0]=matriz[1,0,2]=1 #magenta
-matriz[1,1,0]=matriz[1,1,1]=matriz[1,1,2]=0.5 #gris
-matriz[1,2,1]=1 #verde
+def main():
+    mar = "imagenes/mar.png"
+    barco = "imagenes/barco.png"
+    utp = "imagenes/utp.png"
+    
+    while True:
+        menu()
+        op = int(input("Opcion: "))
+        if op == 1:
+            ip.create_matriz_colors()
+        elif op == 2:
+            ip.create_tv()
+        elif op == 3:
+            ip.invert_color(utp)
+        elif op == 4:
+            ip.red_cape(utp)
+        elif op == 5:
+            ip.green_cape(utp)
+        elif op == 6:
+            ip.blue_cape(utp)
+        elif op == 7:
+            ip.magenta_cape(utp)
+        elif op == 8:
+            ip.cyan_cape(utp)
+        elif op == 9:
+            ip.yellow_cape(utp)
+        elif op == 10:
+            R, G, B = ip.separate_channels(utp)
+            ip.sum_channels(R, G, B)
+        elif op == 11:
+            ip.fusion_images(mar, barco)
+        elif op == 12:
+            ip.fusion_images_equalized(mar, barco)
+        elif op == 13:
+            ip.equalizate_image(mar, 0.5)
+        elif op == 14:
+            ip.average(mar)
+        elif op == 15:
+            ip.average_gray(barco)
+        elif op == 16:
+            ip.luminosity(barco)
+        elif op == 17:
+            ip.midgray(barco)
+        elif op == 18:
+            print("Saliendo...")
+            break
 
-matriz[2,0,0]=matriz[2,0,1]=1 #amarillo
-#negro
-matriz[2,2,2]=1 #azul
-
-
-
-
-
-
-plt.imshow(matriz)
-plt.show()
+if __name__ == '__main__':
+    main()
