@@ -20,6 +20,7 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap, QImage, QFont
 from PIL import Image
+from scipy.ndimage import zoom as zoom_scipy
 
 # Importar las librerías personalizadas
 from Transformaciones import *
@@ -410,21 +411,19 @@ class ImageViewer(QMainWindow):
             print(f"Error: {e}")
     
     def mostrar_imagen(self, img):
-        """Muestra la imagen en el QLabel"""
+        """Muestra la imagen en el QLabel manteniendo el zoom real"""
         if img is None:
             return
-        
+
         try:
-            # Convertir imagen de numpy a QImage
+            # Copiar imagen para evitar modificar la original
             img_display = np.copy(img)
-            
-            # Asegurar que los valores estén en el rango [0, 1]
+
+            # Asegurar valores válidos
             img_display = np.clip(img_display, 0, 1)
-            
-            # Convertir a 8 bits
             img_display = (img_display * 255).astype(np.uint8)
-            
-            # Manejar imágenes en escala de grises
+
+            # Manejar imágenes en escala de grises o RGB
             if len(img_display.shape) == 2:
                 height, width = img_display.shape
                 bytes_per_line = width
@@ -433,19 +432,32 @@ class ImageViewer(QMainWindow):
                 height, width, channel = img_display.shape
                 bytes_per_line = 3 * width
                 q_img = QImage(img_display.data, width, height, bytes_per_line, QImage.Format_RGB888)
-            
+
             pixmap = QPixmap.fromImage(q_img)
-            
-            # Escalar la imagen para que quepa en el label manteniendo la proporción
-            scaled_pixmap = pixmap.scaled(
-                self.imagen_label.size(), 
-                Qt.KeepAspectRatio, 
-                Qt.SmoothTransformation
-            )
-            self.imagen_label.setPixmap(scaled_pixmap)
+
+            # Si la imagen es más grande que el área, mostrar con scroll (sin escalar)
+            label_width = self.imagen_label.width()
+            label_height = self.imagen_label.height()
+
+            if width > label_width or height > label_height:
+                # Escalar suavemente solo si es necesario (evita distorsión)
+                scaled_pixmap = pixmap.scaled(
+                    label_width,
+                    label_height,
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation
+                )
+                self.imagen_label.setPixmap(scaled_pixmap)
+            else:
+                # Mostrar en tamaño real (útil para zoom)
+                self.imagen_label.setPixmap(pixmap)
+
+            self.imagen_label.adjustSize()
+
         except Exception as e:
             print(f"Error al mostrar imagen: {e}")
             QMessageBox.critical(self, "Error", f"Error al mostrar la imagen:\n{str(e)}")
+
     
     def actualizar_imagen(self):
         """Aplica todas las transformaciones seleccionadas"""
@@ -576,6 +588,7 @@ class ImageViewer(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Error al cargar imagen de fusión:\n{str(e)}")
                 print(f"Error: {e}")
     
+
     def aplicar_zoom(self):
         """Aplica zoom a la imagen desde un punto inicial"""
         if self.img_actual is None:
@@ -583,22 +596,41 @@ class ImageViewer(QMainWindow):
             return
         
         try:
-            # Obtener coordenadas iniciales
-            x = self.spin_zoom_x.value()
-            y = self.spin_zoom_y.value()
+            # Obtener coordenadas del punto central del zoom
+            center_x = self.spin_zoom_x.value()
+            center_y = self.spin_zoom_y.value()
             
-            # Factor de zoom fijo de 0.5 (50% del centro desde el punto inicial)
+            # Validar que las coordenadas estén dentro de los límites de la imagen
+            altura, ancho = self.img_actual.shape[:2]
+            
+            if center_x >= altura or center_y >= ancho:
+                QMessageBox.warning(
+                    self, 
+                    "Advertencia", 
+                    f"Las coordenadas están fuera de los límites de la imagen.\n"
+                    f"Tamaño de la imagen: {altura} x {ancho}\n"
+                    f"Coordenadas ingresadas: ({center_x}, {center_y})"
+                )
+                return
+            
+            # Factor de zoom fijo de 0.5 (50% del tamaño original)
             factor = 0.5
             
-            # Aplicar zoom usando la función de la librería
-            img_zoom = zoom(self.img_actual, factor)
+            # Aplicar zoom usando la función modificada
+            img_zoom = zoom(self.img_actual, factor, center_x, center_y)
             
             self.img_actual = img_zoom
             self.mostrar_imagen(img_zoom)
-            print(f"Zoom aplicado desde punto ({x}, {y}) con factor {factor}")
+            
+            print(f"Zoom aplicado desde punto ({center_x}, {center_y}) con factor {factor}")
+            print(f"Nueva dimensión de la imagen: {img_zoom.shape}")
+            
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error al aplicar zoom:\n{str(e)}")
             print(f"Error: {e}")
+            import traceback
+            traceback.print_exc()
+
     
     def guardar_imagen(self):
         """Guarda la imagen actual"""

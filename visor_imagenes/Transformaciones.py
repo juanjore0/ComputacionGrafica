@@ -92,12 +92,51 @@ def translation(img, x, y):
     img_tr[x:, y:] = img[:i-x, :j-y]
     return img_tr
 
-def zoom(img, factor):
+def zoom(img, factor, center_x=None, center_y=None):
+    """
+    Aplica zoom a la imagen desde un punto específico
+    
+    Parameters:
+    -----------
+    img : numpy.ndarray
+        Imagen a la que aplicar zoom
+    factor : float
+        Factor de zoom (0.5 = 50% del tamaño, 1.0 = 100%)
+    center_x : int, optional
+        Coordenada X del centro del zoom (fila). Si es None, usa el centro de la imagen
+    center_y : int, optional
+        Coordenada Y del centro del zoom (columna). Si es None, usa el centro de la imagen
+    
+    Returns:
+    --------
+    numpy.ndarray
+        Imagen con zoom aplicado
+    """
     x, y = img.shape[:2]
-    x_c, y_c = x//2, y//2 # Centro de la imagen
-    x_start, x_end = x_c - int(x_c * factor), x_c + int(x_c * factor)
-    y_start, y_end = y_c - int(y_c * factor), y_c + int(y_c * factor)
+    
+    # Si no se especifican coordenadas, usar el centro de la imagen
+    if center_x is None:
+        center_x = x // 2
+    if center_y is None:
+        center_y = y // 2
+    
+    # Asegurar que las coordenadas estén dentro de los límites
+    center_x = max(0, min(center_x, x - 1))
+    center_y = max(0, min(center_y, y - 1))
+    
+    # Calcular el tamaño de la región a extraer
+    half_width = int(x * factor / 2)
+    half_height = int(y * factor / 2)
+    
+    # Calcular los límites de la región
+    x_start = max(0, center_x - half_width)
+    x_end = min(x, center_x + half_width)
+    y_start = max(0, center_y - half_height)
+    y_end = min(y, center_y + half_height)
+    
+    # Extraer la región
     img_z = img[x_start:x_end, y_start:y_end]
+    
     return img_z
 
 def fusion_images(img_base, img_fusion, factor):
