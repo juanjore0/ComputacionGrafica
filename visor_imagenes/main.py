@@ -671,7 +671,7 @@ class ImageViewer(QMainWindow):
         QMessageBox.information(
             self,
             "Ayuda - Zoom",
-            "📍 CÓMO USAR EL ZOOM:\n\n"
+            "CÓMO USAR EL ZOOM:\n\n"
             "1. Las coordenadas X e Y indican el PUNTO CENTRAL del zoom\n"
             "   (no la esquina superior izquierda)\n\n"
             "2. El factor de zoom indica cuánto se ampliará:\n"
@@ -681,8 +681,6 @@ class ImageViewer(QMainWindow):
             "3. Primero carga una imagen, luego selecciona las coordenadas\n"
             "   del punto donde quieres centrar el zoom\n\n"
             "4. Presiona el botón ZOOM para aplicar\n\n"
-            "💡 TIP: Después de aplicar ACTUALIZAR, puedes hacer zoom\n"
-            "sobre la imagen transformada"
         )
     
     def guardar_imagen(self):
