@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from PIL import Image
 
 def create_img(path):
     img = plt.imread(path)
@@ -94,14 +95,15 @@ def translation(img, x, y):
 
 def zoom(img, factor, center_x=None, center_y=None):
     """
-    Aplica zoom a la imagen desde un punto específico
+    Aplica zoom a la imagen desde un punto específico y redimensiona al tamaño original
     
     Parameters:
     -----------
     img : numpy.ndarray
         Imagen a la que aplicar zoom
     factor : float
-        Factor de zoom (0.5 = 50% del tamaño, 1.0 = 100%)
+        Factor de zoom (0.5 = zoom 2x, 0.25 = zoom 4x)
+        Valores menores = más zoom
     center_x : int, optional
         Coordenada X del centro del zoom (fila). Si es None, usa el centro de la imagen
     center_y : int, optional
@@ -110,9 +112,10 @@ def zoom(img, factor, center_x=None, center_y=None):
     Returns:
     --------
     numpy.ndarray
-        Imagen con zoom aplicado
+        Imagen con zoom aplicado y redimensionada al tamaño original
     """
     x, y = img.shape[:2]
+    original_shape = img.shape  # Guardar forma original (incluye canales de color)
     
     # Si no se especifican coordenadas, usar el centro de la imagen
     if center_x is None:
@@ -134,10 +137,33 @@ def zoom(img, factor, center_x=None, center_y=None):
     y_start = max(0, center_y - half_height)
     y_end = min(y, center_y + half_height)
     
-    # Extraer la región
-    img_z = img[x_start:x_end, y_start:y_end]
+    # Extraer la región (recorte)
+    img_cropped = img[x_start:x_end, y_start:y_end]
     
-    return img_z
+    # Redimensionar la región recortada al tamaño original para simular el zoom
+    # Convertir a formato de 8 bits para PIL
+    img_cropped_8bit = (np.clip(img_cropped, 0, 1) * 255).astype(np.uint8)
+    
+    # Manejar imágenes en escala de grises vs color
+    if len(img_cropped_8bit.shape) == 2:
+        # Escala de grises
+        img_pil = Image.fromarray(img_cropped_8bit, mode='L')
+    else:
+        # Color
+        img_pil = Image.fromarray(img_cropped_8bit)
+    
+    # Redimensionar al tamaño original usando interpolación de alta calidad
+    img_pil_resized = img_pil.resize((y, x), Image.LANCZOS)
+    
+    # Convertir de vuelta a numpy array y normalizar a [0, 1]
+    img_zoomed = np.array(img_pil_resized).astype(np.float32) / 255.0
+    
+    # Si la imagen original era en escala de grises pero tenía 3 dimensiones,
+    # mantener esa estructura
+    if len(original_shape) == 3 and len(img_zoomed.shape) == 2:
+        img_zoomed = np.stack([img_zoomed] * original_shape[2], axis=-1)
+    
+    return img_zoomed
 
 def fusion_images(img_base, img_fusion, factor):
     '''

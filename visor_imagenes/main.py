@@ -20,7 +20,6 @@ from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPixmap, QImage, QFont
 from PIL import Image
-from scipy.ndimage import zoom as zoom_scipy
 
 # Importar las librerías personalizadas
 from Transformaciones import *
@@ -326,17 +325,45 @@ class ImageViewer(QMainWindow):
         zoom_group = QGroupBox("Configuración de Zoom")
         zoom_layout = QGridLayout()
         
-        zoom_layout.addWidget(QLabel("Punto inicial X:"), 0, 0)
+        zoom_layout.addWidget(QLabel("Punto central X:"), 0, 0)
         self.spin_zoom_x = QSpinBox()
         self.spin_zoom_x.setRange(0, 5000)
         self.spin_zoom_x.setValue(0)
         zoom_layout.addWidget(self.spin_zoom_x, 0, 1)
         
-        zoom_layout.addWidget(QLabel("Punto inicial Y:"), 1, 0)
+        zoom_layout.addWidget(QLabel("Punto central Y:"), 1, 0)
         self.spin_zoom_y = QSpinBox()
         self.spin_zoom_y.setRange(0, 5000)
         self.spin_zoom_y.setValue(0)
         zoom_layout.addWidget(self.spin_zoom_y, 1, 1)
+        
+        # Control de factor de zoom
+        zoom_layout.addWidget(QLabel("Factor de zoom:"), 2, 0)
+        self.combo_zoom_factor = QComboBox()
+        self.combo_zoom_factor.addItems([
+            "2x (factor 0.5)",
+            "3x (factor 0.33)",
+            "4x (factor 0.25)",
+            "5x (factor 0.2)",
+            "8x (factor 0.125)"
+        ])
+        self.combo_zoom_factor.setCurrentIndex(0)  # 2x por defecto
+        zoom_layout.addWidget(self.combo_zoom_factor, 2, 1)
+        
+        # Botón de ayuda
+        btn_zoom_help = QPushButton("?")
+        btn_zoom_help.setMaximumWidth(30)
+        btn_zoom_help.clicked.connect(self.mostrar_ayuda_zoom)
+        btn_zoom_help.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #0b7dda;
+            }
+        """)
+        zoom_layout.addWidget(btn_zoom_help, 2, 2)
         
         zoom_group.setLayout(zoom_layout)
         scroll_layout.addWidget(zoom_group)
@@ -403,27 +430,46 @@ class ImageViewer(QMainWindow):
         try:
             self.img_original = create_img(self.ruta_imagen)
             self.img_actual = np.copy(self.img_original)
+            
+            # Ajustar los límites de los SpinBox de zoom según el tamaño de la imagen
+            altura, ancho = self.img_original.shape[:2]
+            self.spin_zoom_x.setMaximum(altura - 1)
+            self.spin_zoom_y.setMaximum(ancho - 1)
+            
+            # Establecer valores iniciales en el centro
+            self.spin_zoom_x.setValue(altura // 2)
+            self.spin_zoom_y.setValue(ancho // 2)
+            
             self.mostrar_imagen(self.img_actual)
-            QMessageBox.information(self, "Éxito", "Imagen cargada correctamente")
+            QMessageBox.information(
+                self, 
+                "Éxito", 
+                f"Imagen cargada correctamente\n"
+                f"Dimensiones: {altura} x {ancho} píxeles"
+            )
             print(f"Imagen cargada: {self.img_original.shape}")
+            print(f"Límites de zoom ajustados: X(0-{altura-1}), Y(0-{ancho-1})")
+            
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error al cargar la imagen:\n{str(e)}")
             print(f"Error: {e}")
     
     def mostrar_imagen(self, img):
-        """Muestra la imagen en el QLabel manteniendo el zoom real"""
+        """Muestra la imagen en el QLabel"""
         if img is None:
             return
-
+        
         try:
-            # Copiar imagen para evitar modificar la original
+            # Convertir imagen de numpy a QImage
             img_display = np.copy(img)
-
-            # Asegurar valores válidos
+            
+            # Asegurar que los valores estén en el rango [0, 1]
             img_display = np.clip(img_display, 0, 1)
+            
+            # Convertir a 8 bits
             img_display = (img_display * 255).astype(np.uint8)
-
-            # Manejar imágenes en escala de grises o RGB
+            
+            # Manejar imágenes en escala de grises
             if len(img_display.shape) == 2:
                 height, width = img_display.shape
                 bytes_per_line = width
@@ -432,32 +478,19 @@ class ImageViewer(QMainWindow):
                 height, width, channel = img_display.shape
                 bytes_per_line = 3 * width
                 q_img = QImage(img_display.data, width, height, bytes_per_line, QImage.Format_RGB888)
-
+            
             pixmap = QPixmap.fromImage(q_img)
-
-            # Si la imagen es más grande que el área, mostrar con scroll (sin escalar)
-            label_width = self.imagen_label.width()
-            label_height = self.imagen_label.height()
-
-            if width > label_width or height > label_height:
-                # Escalar suavemente solo si es necesario (evita distorsión)
-                scaled_pixmap = pixmap.scaled(
-                    label_width,
-                    label_height,
-                    Qt.KeepAspectRatio,
-                    Qt.SmoothTransformation
-                )
-                self.imagen_label.setPixmap(scaled_pixmap)
-            else:
-                # Mostrar en tamaño real (útil para zoom)
-                self.imagen_label.setPixmap(pixmap)
-
-            self.imagen_label.adjustSize()
-
+            
+            # Escalar la imagen para que quepa en el label manteniendo la proporción
+            scaled_pixmap = pixmap.scaled(
+                self.imagen_label.size(), 
+                Qt.KeepAspectRatio, 
+                Qt.SmoothTransformation
+            )
+            self.imagen_label.setPixmap(scaled_pixmap)
         except Exception as e:
             print(f"Error al mostrar imagen: {e}")
             QMessageBox.critical(self, "Error", f"Error al mostrar la imagen:\n{str(e)}")
-
     
     def actualizar_imagen(self):
         """Aplica todas las transformaciones seleccionadas"""
@@ -588,9 +621,8 @@ class ImageViewer(QMainWindow):
                 QMessageBox.critical(self, "Error", f"Error al cargar imagen de fusión:\n{str(e)}")
                 print(f"Error: {e}")
     
-
     def aplicar_zoom(self):
-        """Aplica zoom a la imagen desde un punto inicial"""
+        """Aplica zoom a la imagen desde un punto central con factor seleccionable"""
         if self.img_actual is None:
             QMessageBox.warning(self, "Advertencia", "Primero carga una imagen")
             return
@@ -613,24 +645,45 @@ class ImageViewer(QMainWindow):
                 )
                 return
             
-            # Factor de zoom fijo de 0.5 (50% del tamaño original)
-            factor = 0.5
+            # Obtener el factor de zoom desde el ComboBox
+            zoom_text = self.combo_zoom_factor.currentText()
+            # Extraer el factor del texto "2x (factor 0.5)"
+            factor = float(zoom_text.split("factor ")[1].rstrip(")"))
             
             # Aplicar zoom usando la función modificada
-            img_zoom = zoom(self.img_actual, factor, center_x, center_y)
+            img_zoomed = zoom(self.img_actual, factor, center_x, center_y)
             
-            self.img_actual = img_zoom
-            self.mostrar_imagen(img_zoom)
+            self.img_actual = img_zoomed
+            self.mostrar_imagen(img_zoomed)
             
-            print(f"Zoom aplicado desde punto ({center_x}, {center_y}) con factor {factor}")
-            print(f"Nueva dimensión de la imagen: {img_zoom.shape}")
+            zoom_level = zoom_text.split(" ")[0]  # Obtener "2x", "3x", etc.
+            print(f"Zoom {zoom_level} aplicado desde punto ({center_x}, {center_y})")
+            print(f"Dimensión de la imagen: {img_zoomed.shape}")
             
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Error al aplicar zoom:\n{str(e)}")
             print(f"Error: {e}")
             import traceback
             traceback.print_exc()
-
+    
+    def mostrar_ayuda_zoom(self):
+        """Muestra información sobre cómo usar el zoom"""
+        QMessageBox.information(
+            self,
+            "Ayuda - Zoom",
+            "📍 CÓMO USAR EL ZOOM:\n\n"
+            "1. Las coordenadas X e Y indican el PUNTO CENTRAL del zoom\n"
+            "   (no la esquina superior izquierda)\n\n"
+            "2. El factor de zoom indica cuánto se ampliará:\n"
+            "   • 2x = Amplía el doble (muestra el 50% de la imagen)\n"
+            "   • 4x = Amplía 4 veces (muestra el 25% de la imagen)\n"
+            "   • 8x = Amplía 8 veces (muestra el 12.5% de la imagen)\n\n"
+            "3. Primero carga una imagen, luego selecciona las coordenadas\n"
+            "   del punto donde quieres centrar el zoom\n\n"
+            "4. Presiona el botón ZOOM para aplicar\n\n"
+            "💡 TIP: Después de aplicar ACTUALIZAR, puedes hacer zoom\n"
+            "sobre la imagen transformada"
+        )
     
     def guardar_imagen(self):
         """Guarda la imagen actual"""
@@ -689,8 +742,11 @@ class ImageViewer(QMainWindow):
         self.check_binarizar.setChecked(False)
         self.check_histograma.setChecked(False)
         
-        self.spin_zoom_x.setValue(0)
-        self.spin_zoom_y.setValue(0)
+        # Restablecer zoom al centro
+        altura, ancho = self.img_original.shape[:2]
+        self.spin_zoom_x.setValue(altura // 2)
+        self.spin_zoom_y.setValue(ancho // 2)
+        self.combo_zoom_factor.setCurrentIndex(0)
         
         self.mostrar_imagen(self.img_actual)
         QMessageBox.information(self, "Éxito", "Imagen restablecida a su estado original")
