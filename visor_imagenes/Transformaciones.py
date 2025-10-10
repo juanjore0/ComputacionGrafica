@@ -167,15 +167,36 @@ def zoom(img, factor, center_x=None, center_y=None):
 
 def fusion_images(img_base, img_fusion, factor):
     '''
-    Función que junta dos imágenes a partir del centro
-    '''
-    ancho, largo = img_fusion.shape[:2]
-    x, y = img_base.shape[:2]
+    Función que fusiona dos imágenes con transparencia
+    Las imágenes deben tener las mismas dimensiones
     
-    x_centro = (x-ancho) // 2
-    y_centro = (y-largo) // 2
-
-    for i in range(ancho):
-        for j in range(largo):
-                img_base[x_centro + i, y_centro + j ] = (img_base[x_centro + i, y_centro + j ] * (1 - factor)) + img_fusion[i, j] * factor
-    return img_base
+    Parameters:
+    -----------
+    img_base : numpy.ndarray
+        Imagen base sobre la que se fusionará
+    img_fusion : numpy.ndarray
+        Imagen que se fusionará sobre la base
+    factor : float
+        Factor de transparencia (0-1). 
+        0 = solo img_base, 1 = solo img_fusion, 0.5 = 50/50
+    
+    Returns:
+    --------
+    numpy.ndarray
+        Imagen fusionada
+    '''
+    # Crear una copia para no modificar la original
+    img_result = np.copy(img_base)
+    
+    # Verificar que ambas imágenes tengan las mismas dimensiones
+    if img_base.shape != img_fusion.shape:
+        raise ValueError(f"Las imágenes deben tener las mismas dimensiones. "
+                        f"Base: {img_base.shape}, Fusión: {img_fusion.shape}")
+    
+    # Aplicar la fusión usando operaciones vectorizadas (mucho más rápido)
+    img_result = img_base * (1 - factor) + img_fusion * factor
+    
+    # Asegurar que los valores estén en el rango [0, 1]
+    img_result = np.clip(img_result, 0, 1)
+    
+    return img_result

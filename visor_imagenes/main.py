@@ -22,9 +22,9 @@ from PyQt5.QtGui import QPixmap, QImage, QFont
 from PIL import Image
 
 # Importar las librerías personalizadas
-from Transformaciones import *
-from image_processor import *
 
+from image_processor import *
+from Transformaciones import *
 
 class ImageViewer(QMainWindow):
     """Clase principal del visor de imágenes"""
@@ -571,8 +571,32 @@ class ImageViewer(QMainWindow):
             # Aplicar fusión si hay imagen secundaria
             if self.img_fusion is not None:
                 factor = self.slider_transparencia.value() / 100.0
-                img = fusion_images(img, self.img_fusion, factor)
-                print(f"Fusión aplicada con transparencia: {factor}")
+                try:
+                    # Asegurar que ambas imágenes tengan las mismas dimensiones antes de fusionar
+                    if img.shape != self.img_fusion.shape:
+                        # Redimensionar img_fusion al tamaño actual de img
+                        altura, ancho = img.shape[:2]
+                        img_fusion_temp = (np.clip(self.img_fusion, 0, 1) * 255).astype(np.uint8)
+                        
+                        img_fusion_pil = Image.fromarray(img_fusion_temp)
+                        img_fusion_pil_resized = img_fusion_pil.resize(
+                            (ancho, altura),
+                            Image.LANCZOS
+                        )
+                        img_fusion_adjusted = np.array(img_fusion_pil_resized).astype(np.float32) / 255.0
+                    else:
+                        img_fusion_adjusted = self.img_fusion
+                    
+                    img = fusion_images(img, img_fusion_adjusted, factor)
+                    print(f"Fusión aplicada con transparencia: {factor}")
+                except Exception as e:
+                    print(f"Error al aplicar fusión: {e}")
+                    QMessageBox.warning(
+                        self,
+                        "Advertencia",
+                        f"No se pudo aplicar la fusión:\n{str(e)}\n\n"
+                        "Esto puede ocurrir si las imágenes tienen formatos incompatibles."
+                    )
             
             # Asegurar que los valores están en el rango correcto
             img = np.clip(img, 0, 1)
@@ -589,37 +613,88 @@ class ImageViewer(QMainWindow):
     
     def fusionar_imagenes(self):
         """Permite seleccionar una segunda imagen para fusionar"""
+        if self.img_original is None:
+            QMessageBox.warning(
+                self,
+                "Advertencia",
+                "Primero debes cargar una imagen base.\n\n"
+                "Pasos:\n"
+                "1. Presiona EXPLORAR y selecciona una imagen\n"
+                "2. Presiona CARGAR\n"
+                "3. Luego presiona FUSIONAR IMÁGENES"
+            )
+            return
+            
         archivo, _ = QFileDialog.getOpenFileName(
             self,
             "Seleccionar Imagen para Fusionar",
             "",
-            "Imágenes (*.jpg *.jpeg *.png *.bmp)"
+            "Imágenes (*.jpg *.jpeg *.png *.bmp *.gif *.tiff);;Todos los archivos (*.*)"
         )
         if archivo:
             try:
+                # Cargar la imagen de fusión
                 img_temp = create_img(archivo)
                 
-                # Redimensionar la imagen de fusión si es necesario
-                if self.img_original is not None:
-                    if img_temp.shape[:2] != self.img_original.shape[:2]:
-                        # Redimensionar usando PIL
-                        img_pil = Image.fromarray((img_temp * 255).astype(np.uint8))
-                        img_pil = img_pil.resize(
-                            (self.img_original.shape[1], self.img_original.shape[0]),
-                            Image.LANCZOS
-                        )
-                        img_temp = np.array(img_pil).astype(np.float32) / 255.0
+                print(f"Imagen de fusión original: {img_temp.shape}")
+                print(f"Imagen base: {self.img_original.shape}")
+                
+                # Redimensionar la imagen de fusión para que coincida con la imagen base
+                if img_temp.shape[:2] != self.img_original.shape[:2]:
+                    altura_base, ancho_base = self.img_original.shape[:2]
+                    
+                    # Convertir a formato de 8 bits para PIL
+                    img_temp_8bit = (np.clip(img_temp, 0, 1) * 255).astype(np.uint8)
+                    
+                    # Redimensionar usando PIL
+                    img_pil = Image.fromarray(img_temp_8bit)
+                    img_pil_resized = img_pil.resize(
+                        (ancho_base, altura_base),
+                        Image.LANCZOS
+                    )
+                    
+                    # Convertir de vuelta a numpy y normalizar
+                    img_temp = np.array(img_pil_resized).astype(np.float32) / 255.0
+                    
+                    print(f"Imagen de fusión redimensionada a: {img_temp.shape}")
+                
+                # Verificar que ambas imágenes tengan el mismo número de canales
+                if len(img_temp.shape) != len(self.img_original.shape):
+                    if len(img_temp.shape) == 2 and len(self.img_original.shape) == 3:
+                        # Convertir escala de grises a RGB
+                        img_temp = np.stack([img_temp] * 3, axis=-1)
+                        print("Imagen de fusión convertida de escala de grises a RGB")
+                    elif len(img_temp.shape) == 3 and len(self.img_original.shape) == 2:
+                        # Convertir RGB a escala de grises
+                        img_temp = np.mean(img_temp, axis=2)
+                        print("Imagen de fusión convertida de RGB a escala de grises")
                 
                 self.img_fusion = img_temp
+                
                 QMessageBox.information(
                     self, 
                     "Éxito", 
-                    "Imagen para fusión cargada.\n\nAjusta la transparencia y presiona ACTUALIZAR para aplicar la fusión."
+                    f"Imagen para fusión cargada correctamente.\n\n"
+                    f"Dimensiones originales: {archivo.split('/')[-1]}\n"
+                    f"Redimensionada a: {img_temp.shape[1]} x {img_temp.shape[0]}\n\n"
+                    "Ahora:\n"
+                    "1. Ajusta el control de Transparencia (0-100%)\n"
+                    "2. Presiona ACTUALIZAR para ver la fusión\n\n"
+                    "💡 Tip: 50% muestra ambas imágenes por igual"
                 )
-                print(f"Imagen de fusión cargada: {self.img_fusion.shape}")
+                print(f"Imagen de fusión cargada exitosamente: {self.img_fusion.shape}")
+                
             except Exception as e:
-                QMessageBox.critical(self, "Error", f"Error al cargar imagen de fusión:\n{str(e)}")
-                print(f"Error: {e}")
+                QMessageBox.critical(
+                    self, 
+                    "Error", 
+                    f"Error al cargar imagen de fusión:\n\n{str(e)}\n\n"
+                    f"Asegúrate de seleccionar un archivo de imagen válido\n"
+                    f"(.jpg, .png, .bmp, etc.)"
+                )
+                print(f"Error al cargar imagen de fusión: {e}")
+                import traceback
+                traceback.print_exc()
     
     def aplicar_zoom(self):
         """Aplica zoom a la imagen desde un punto central con factor seleccionable"""
@@ -671,7 +746,7 @@ class ImageViewer(QMainWindow):
         QMessageBox.information(
             self,
             "Ayuda - Zoom",
-            "CÓMO USAR EL ZOOM:\n\n"
+            "📍 CÓMO USAR EL ZOOM:\n\n"
             "1. Las coordenadas X e Y indican el PUNTO CENTRAL del zoom\n"
             "   (no la esquina superior izquierda)\n\n"
             "2. El factor de zoom indica cuánto se ampliará:\n"
@@ -681,6 +756,8 @@ class ImageViewer(QMainWindow):
             "3. Primero carga una imagen, luego selecciona las coordenadas\n"
             "   del punto donde quieres centrar el zoom\n\n"
             "4. Presiona el botón ZOOM para aplicar\n\n"
+            "💡 TIP: Después de aplicar ACTUALIZAR, puedes hacer zoom\n"
+            "sobre la imagen transformada"
         )
     
     def guardar_imagen(self):
