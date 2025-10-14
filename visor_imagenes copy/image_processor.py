@@ -1,9 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
+
+#funciones adicionales de procesamiento
     
 def invert_color(img):
     '''
-    Invierte los colores de una img
+    Invierte los colores de una img 
+    blaco a negro y viceversa
     '''
     img_invertida = 1 - img
     

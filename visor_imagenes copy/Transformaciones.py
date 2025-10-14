@@ -51,6 +51,8 @@ def snip(img, x1, y1, x2, y2):
     img_snip = img[x1:x2, y1:y2]
     return img_snip
 
+
+#Rota la imagen alrededor de su centro usando transformación geométrica.
 def rotate(img, ang):
     if ang is None:
         return img
