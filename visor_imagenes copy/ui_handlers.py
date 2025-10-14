@@ -46,6 +46,10 @@ class ImageHandler:
             print(f"Imagen seleccionada: {archivo}")
     
     def cargar_imagen(self):
+        # 1. Verifica que se haya seleccionado una ruta
+        # 2. Carga la imagen usando create_img()
+        # 3. Ajusta los límites de los controles según el tamaño de la imagen
+
         """Carga la imagen seleccionada"""
         if not self.viewer.ruta_imagen:
             QMessageBox.warning(
