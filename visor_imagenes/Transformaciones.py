@@ -51,6 +51,8 @@ def snip(img, x1, y1, x2, y2):
     img_snip = img[x1:x2, y1:y2]
     return img_snip
 
+
+#Rota la imagen alrededor de su centro usando transformación geométrica.
 def rotate(img, ang):
     if ang is None:
         return img
@@ -185,13 +187,13 @@ def fusion_images(img_base, img_fusion, factor):
     numpy.ndarray
         Imagen fusionada
     '''
-    # Crear una copia para no modificar la original
-    img_result = np.copy(img_base)
-    
     # Verificar que ambas imágenes tengan las mismas dimensiones
     if img_base.shape != img_fusion.shape:
         raise ValueError(f"Las imágenes deben tener las mismas dimensiones. "
                         f"Base: {img_base.shape}, Fusión: {img_fusion.shape}")
+    
+    # Crear una copia para no modificar la original
+    img_result = np.copy(img_base)
     
     # Aplicar la fusión usando operaciones vectorizadas (mucho más rápido)
     img_result = img_base * (1 - factor) + img_fusion * factor
