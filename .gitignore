@@ -7,6 +7,12 @@ __pycache__/
 # 
 prueba/
 .venv/
+build/
+dist/
+*.spec
 
 #archivos .rar
 *.rar
+
+#archivos .zip
+*.zip
