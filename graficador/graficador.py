@@ -1,5 +1,3 @@
-
-
 import pygame
 import math
 from algoritmos import (
@@ -14,28 +12,26 @@ pygame.init()
 # Configuración general
 # -----------------------------
 ANCHO, ALTO = 1200, 750
-ANCHO_PANEL = 250
+ANCHO_PANEL = 280
 FPS = 60
-
 COLOR_BG = (28, 28, 32)
 COLOR_PANEL = (20, 20, 24)
 COLOR_TEXTO = (240, 240, 240)
 COLOR_BORDE = (70, 70, 80)
-
 COLOR_CANVAS = (255, 255, 255)
 COLOR_GRID = (230, 230, 235)
 COLOR_AXES = (120, 120, 120)
 
 # Colores por tipo de figura
 COLORES_FIGURAS = {
-    "Linea_DDA": (255, 69, 0),      # Naranja rojizo
+    "Linea_DDA": (255, 69, 0),        # Naranja rojizo
     "Linea_Bresenham": (30, 144, 255),  # Azul
-    "Circulo": (34, 139, 34),       # Verde
-    "Elipse": (147, 112, 219),      # Púrpura
-    "Triangulo": (255, 215, 0),     # Dorado
-    "Rectangulo": (220, 20, 60),    # Carmesí
-    "Poligono": (64, 224, 208),     # Turquesa
-    "Bezier": (255, 105, 180)       # Rosa
+    "Circulo": (34, 139, 34),          # Verde
+    "Elipse": (147, 112, 219),         # Púrpura
+    "Triangulo": (255, 215, 0),        # Dorado
+    "Rectangulo": (220, 20, 60),       # Carmesí
+    "Poligono": (64, 224, 208),        # Turquesa
+    "Bezier": (255, 105, 180)          # Rosa
 }
 
 # -----------------------------
@@ -43,8 +39,8 @@ COLORES_FIGURAS = {
 # -----------------------------
 class Boton:
     def __init__(self, x, y, w, h, texto, on_click=None,
-                 color=(60, 62, 68), color_hover=(80, 82, 90),
-                 color_texto=(240, 240, 240), fuente=None):
+                 color=(70, 130, 180), color_hover=(100, 160, 210),
+                 color_texto=(255, 255, 255), fuente=None):
         self.rect = pygame.Rect(x, y, w, h)
         self.texto = texto
         self.on_click = on_click
@@ -57,8 +53,8 @@ class Boton:
 
     def draw(self, surface):
         col = self.color_hover if (self.hover or self.activo) else self.color
-        pygame.draw.rect(surface, col, self.rect, border_radius=8)
-        pygame.draw.rect(surface, COLOR_BORDE, self.rect, width=1, border_radius=8)
+        pygame.draw.rect(surface, col, self.rect, border_radius=10)
+        pygame.draw.rect(surface, (255, 255, 255), self.rect, width=2, border_radius=10)
         text_surf = self.fuente.render(self.texto, True, self.color_texto)
         text_rect = text_surf.get_rect(center=self.rect.center)
         surface.blit(text_surf, text_rect)
@@ -103,17 +99,18 @@ def draw_axes(surface, color=COLOR_AXES):
 class GraficadorApp:
     def __init__(self):
         self.screen = pygame.display.set_mode((ANCHO, ALTO))
-        pygame.display.set_caption("Graficador 2D - Algoritmos Manuales")
+        pygame.display.set_caption(" Graficador 2D ")
         self.clock = pygame.time.Clock()
-        self.font_title = pygame.font.Font(None, 30)
+        self.font_title = pygame.font.Font(None, 36)
+        self.font_subtitle = pygame.font.Font(None, 24)
         self.font_small = pygame.font.Font(None, 22)
 
         # Canvas donde se dibuja
-        canvas_w = ANCHO - ANCHO_PANEL - 20
+        canvas_w = ANCHO - ANCHO_PANEL - 30
         canvas_h = ALTO - 40
         self.canvas = pygame.Surface((canvas_w, canvas_h))
         self.canvas_rect = self.canvas.get_rect()
-        self.canvas_rect.topleft = (ANCHO_PANEL + 10, 20)
+        self.canvas_rect.topleft = (15, 20)
 
         # Estado
         self.herramienta = "Linea_Bresenham"
@@ -136,21 +133,20 @@ class GraficadorApp:
     def limpiar_canvas(self):
         """Limpia el canvas y redibuja grid, ejes y figuras existentes"""
         self.canvas.fill(COLOR_CANVAS)
-        
         if self.mostrando_grid:
             draw_grid(self.canvas, spacing=20)
         if self.mostrando_ejes:
             draw_axes(self.canvas)
-
         # Redibujar figuras
         for f in self.figuras:
             self._dibujar_figura(self.canvas, f)
 
     def _crear_botones(self):
-        x, y = 10, 15
-        w = ANCHO_PANEL - 20
-        h = 38
-        sep = 6
+        x = ANCHO - ANCHO_PANEL + 15
+        y = 80
+        w = ANCHO_PANEL - 30
+        h = 40
+        sep = 8
 
         def set_tool(nombre):
             def _cb():
@@ -161,35 +157,55 @@ class GraficadorApp:
                         b.activo = (b.texto == nombre.replace('_', ' '))
             return _cb
 
-        # Herramientas
+        # Herramientas con colores personalizados - VALORES CORREGIDOS
         herramientas = [
-            ("Linea DDA", "Linea_DDA"),
-            ("Linea Bresenham", "Linea_Bresenham"),
-            ("Circulo", "Circulo"),
-            ("Elipse", "Elipse"),
-            ("Triangulo", "Triangulo"),
-            ("Rectangulo", "Rectangulo"),
-            ("Poligono", "Poligono"),
-            ("Bezier", "Bezier")
+            ("Linea DDA", "Linea_DDA", (255, 99, 71), (255, 129, 101)),
+            ("Linea Bresenham", "Linea_Bresenham", (30, 144, 255), (60, 174, 255)),
+            ("Circulo", "Circulo", (50, 205, 50), (80, 235, 80)),
+            ("Elipse", "Elipse", (147, 112, 219), (177, 142, 249)),
+            ("Triangulo", "Triangulo", (255, 215, 0), (255, 245, 30)),
+            ("Rectangulo", "Rectangulo", (220, 20, 60), (250, 50, 90)),
+            ("Poligono", "Poligono", (64, 224, 208), (94, 254, 238)),
+            ("Bezier", "Bezier", (255, 105, 180), (255, 135, 210))
         ]
 
-        for i, (texto, nombre) in enumerate(herramientas):
-            btn = Boton(x, y + i*(h+sep), w, h, texto, on_click=set_tool(nombre))
+        for i, (texto, nombre, color, color_hover) in enumerate(herramientas):
+            btn = Boton(x, y + i*(h+sep), w, h, texto, 
+                    on_click=set_tool(nombre),
+                    color=color,
+                    color_hover=color_hover)
             btn.es_herramienta = True
             if nombre == self.herramienta:
                 btn.activo = True
             self.botones.append(btn)
 
         # Botones de acción
-        y_acc = y + len(herramientas)*(h+sep) + 15
-        b_deshacer = Boton(x, y_acc, w, h, "Deshacer", on_click=self.deshacer)
-        b_limpiar = Boton(x, y_acc + (h+sep), w, h, "Limpiar", on_click=self.vaciar_figuras)
+        y_acc = y + len(herramientas)*(h+sep) + 20
+        
+        b_deshacer = Boton(x, y_acc, w, h, "Deshacer", 
+                        on_click=self.deshacer,
+                        color=(138, 43, 226),
+                        color_hover=(168, 73, 255))
+        
+        b_limpiar = Boton(x, y_acc + (h+sep), w, h, "Limpiar", 
+                        on_click=self.vaciar_figuras,
+                        color=(220, 20, 60),
+                        color_hover=(250, 50, 90))
 
-        y_toggle = y_acc + 2*(h+sep) + 15
-        b_grid = Boton(x, y_toggle, w, h, "Toggle Cuadrícula", on_click=self.toggle_grid)
-        b_axes = Boton(x, y_toggle + (h+sep), w, h, "Toggle Ejes", on_click=self.toggle_axes)
+        y_toggle = y_acc + 2*(h+sep) + 20
+        
+        b_grid = Boton(x, y_toggle, w, h, "Cuadrícula", 
+                    on_click=self.toggle_grid,
+                    color=(70, 130, 180),
+                    color_hover=(100, 160, 210))
+        
+        b_axes = Boton(x, y_toggle + (h+sep), w, h, "Ejes", 
+                    on_click=self.toggle_axes,
+                    color=(70, 130, 180),
+                    color_hover=(100, 160, 210))
 
         self.botones.extend([b_deshacer, b_limpiar, b_grid, b_axes])
+
 
     def cancelar_modos_especiales(self):
         """Cancela modos de polígono y Bézier"""
@@ -219,7 +235,6 @@ class GraficadorApp:
 
     def manejador_eventos(self):
         eventos = pygame.event.get()
-        
         for e in eventos:
             if e.type == pygame.QUIT:
                 return False
@@ -239,17 +254,19 @@ class GraficadorApp:
                 if self.canvas_rect.collidepoint(e.pos):
                     mx = e.pos[0] - self.canvas_rect.x
                     my = e.pos[1] - self.canvas_rect.y
-                    
+
                     # Modo polígono
                     if self.herramienta == "Poligono":
                         self.modo_poligono = True
                         self.vertices_poligono.append((mx, my))
+
                     # Modo Bézier
                     elif self.herramienta == "Bezier":
                         self.modo_bezier = True
                         self.puntos_bezier.append((mx, my))
                         if len(self.puntos_bezier) == 4:
                             self._finalizar_bezier()
+
                     # Figuras normales (2 puntos)
                     else:
                         self.dibujando = True
@@ -392,14 +409,21 @@ class GraficadorApp:
         while corriendo:
             corriendo = self.manejador_eventos()
 
-            # Fondo y panel
+            # Fondo
             self.screen.fill(COLOR_BG)
-            panel_rect = pygame.Rect(0, 0, ANCHO_PANEL, ALTO)
-            pygame.draw.rect(self.screen, COLOR_PANEL, panel_rect)
 
-            # Título
-            titulo = self.font_title.render("Herramientas", True, COLOR_TEXTO)
-            self.screen.blit(titulo, (10, -2))
+            # Panel derecho
+            panel_rect = pygame.Rect(ANCHO - ANCHO_PANEL, 0, ANCHO_PANEL, ALTO)
+            pygame.draw.rect(self.screen, COLOR_PANEL, panel_rect)
+            
+            # Título bonito en el panel
+            titulo = self.font_title.render("Herramientas", True, (100, 200, 255))
+            self.screen.blit(titulo, (ANCHO - ANCHO_PANEL + 15, 20))
+            
+            # Línea decorativa
+            pygame.draw.line(self.screen, (100, 200, 255), 
+                           (ANCHO - ANCHO_PANEL + 15, 60), 
+                           (ANCHO - 15, 60), 3)
 
             # Botones
             for b in self.botones:
@@ -410,21 +434,24 @@ class GraficadorApp:
             self._dibujar_preview(preview_surface)
             self.screen.blit(preview_surface, self.canvas_rect)
 
+            # Borde del canvas
+            pygame.draw.rect(self.screen, (100, 200, 255), self.canvas_rect, width=3, border_radius=5)
+
             # Instrucciones
             info_y = ALTO - 60
             if self.modo_poligono:
                 txt1 = self.font_small.render("Polígono: Clic para agregar vértices", True, (200, 200, 210))
                 txt2 = self.font_small.render("ENTER/ESPACIO para finalizar, ESC para cancelar", True, (200, 200, 210))
-                self.screen.blit(txt1, (ANCHO_PANEL + 14, info_y))
-                self.screen.blit(txt2, (ANCHO_PANEL + 14, info_y + 20))
+                self.screen.blit(txt1, (20, info_y))
+                self.screen.blit(txt2, (20, info_y + 20))
             elif self.modo_bezier:
                 txt1 = self.font_small.render(f"Bézier: {len(self.puntos_bezier)}/4 puntos de control", True, (200, 200, 210))
                 txt2 = self.font_small.render("Clic para colocar puntos (se dibuja al 4to punto)", True, (200, 200, 210))
-                self.screen.blit(txt1, (ANCHO_PANEL + 14, info_y))
-                self.screen.blit(txt2, (ANCHO_PANEL + 14, info_y + 20))
+                self.screen.blit(txt1, (20, info_y))
+                self.screen.blit(txt2, (20, info_y + 20))
             else:
                 txt = self.font_small.render(f"Herramienta: {self.herramienta.replace('_', ' ')}", True, (200, 200, 210))
-                self.screen.blit(txt, (ANCHO_PANEL + 14, info_y))
+                self.screen.blit(txt, (20, info_y))
 
             pygame.display.flip()
             self.clock.tick(FPS)
