@@ -22,16 +22,31 @@ COLOR_CANVAS = (255, 255, 255)
 COLOR_GRID = (230, 230, 235)
 COLOR_AXES = (120, 120, 120)
 
-# Colores por tipo de figura
+# Paleta de colores disponibles
+PALETA_COLORES = [
+    ("Rojo", (255, 0, 0)),
+    ("Azul", (0, 0, 255)),
+    ("Verde", (0, 200, 0)),
+    ("Amarillo", (255, 255, 0)),
+    ("Naranja", (255, 140, 0)),
+    ("Púrpura", (160, 32, 240)),
+    ("Rosa", (255, 105, 180)),
+    ("Turquesa", (64, 224, 208)),
+    ("Negro", (0, 0, 0)),
+    ("Gris", (128, 128, 128))
+]
+
+# Colores por tipo de figura (por defecto)
 COLORES_FIGURAS = {
-    "Linea_DDA": (255, 69, 0),        # Naranja rojizo
-    "Linea_Bresenham": (30, 144, 255),  # Azul
-    "Circulo": (34, 139, 34),          # Verde
-    "Elipse": (147, 112, 219),         # Púrpura
-    "Triangulo": (255, 215, 0),        # Dorado
-    "Rectangulo": (220, 20, 60),       # Carmesí
-    "Poligono": (64, 224, 208),        # Turquesa
-    "Bezier": (255, 105, 180)          # Rosa
+    "Linea_DDA": (255, 69, 0),
+    "Linea_Bresenham": (30, 144, 255),
+    "Circulo": (34, 139, 34),
+    "Elipse": (147, 112, 219),
+    "Triangulo": (255, 215, 0),
+    "Rectangulo": (220, 20, 60),
+    "Poligono": (64, 224, 208),
+    "Bezier": (255, 105, 180),
+    "Lapiz": (0, 0, 0)
 }
 
 # -----------------------------
@@ -69,6 +84,46 @@ class Boton:
                 return True
         return False
 
+
+# -----------------------------
+# Clase BotonColor (selector circular)
+# -----------------------------
+class BotonColor:
+    def __init__(self, x, y, radio, color, on_click=None):
+        self.x = x
+        self.y = y
+        self.radio = radio
+        self.color = color
+        self.on_click = on_click
+        self.hover = False
+        self.activo = False
+
+    def draw(self, surface):
+        # Círculo de color
+        pygame.draw.circle(surface, self.color, (self.x, self.y), self.radio)
+        
+        # Borde
+        borde_color = (255, 255, 255) if self.activo else (200, 200, 200)
+        borde_width = 4 if self.activo else 2
+        pygame.draw.circle(surface, borde_color, (self.x, self.y), self.radio, borde_width)
+        
+        # Efecto hover
+        if self.hover and not self.activo:
+            pygame.draw.circle(surface, (255, 255, 100), (self.x, self.y), self.radio + 3, 2)
+
+    def handle(self, events):
+        mouse_pos = pygame.mouse.get_pos()
+        dist = math.hypot(mouse_pos[0] - self.x, mouse_pos[1] - self.y)
+        self.hover = dist <= self.radio
+        
+        for e in events:
+            if e.type == pygame.MOUSEBUTTONDOWN and e.button == 1 and self.hover:
+                if self.on_click:
+                    self.on_click()
+                return True
+        return False
+
+
 # -----------------------------
 # Utilidades de dibujo
 # -----------------------------
@@ -82,16 +137,16 @@ def draw_grid(surface, spacing=20, color=COLOR_GRID):
         puntos = linea_bresenham(0, y, w-1, y)
         dibujar_puntos(surface, puntos, color)
 
+
 def draw_axes(surface, color=COLOR_AXES):
     """Dibuja ejes usando líneas Bresenham"""
     w, h = surface.get_size()
     cx, cy = w // 2, h // 2
-    # Eje X
     puntos_x = linea_bresenham(0, cy, w-1, cy)
     dibujar_puntos(surface, puntos_x, color)
-    # Eje Y
     puntos_y = linea_bresenham(cx, 0, cx, h-1)
     dibujar_puntos(surface, puntos_y, color)
+
 
 # -----------------------------
 # App Graficador
@@ -99,7 +154,7 @@ def draw_axes(surface, color=COLOR_AXES):
 class GraficadorApp:
     def __init__(self):
         self.screen = pygame.display.set_mode((ANCHO, ALTO))
-        pygame.display.set_caption(" Graficador 2D ")
+        pygame.display.set_caption("🎨 Graficador 2D")
         self.clock = pygame.time.Clock()
         self.font_title = pygame.font.Font(None, 36)
         self.font_subtitle = pygame.font.Font(None, 24)
@@ -114,13 +169,18 @@ class GraficadorApp:
 
         # Estado
         self.herramienta = "Linea_Bresenham"
+        self.color_actual = (0, 0, 0)  # Color seleccionado
         self.mostrando_grid = True
         self.mostrando_ejes = True
         self.dibujando = False
-        self.puntos_temp = []  # Para figuras que requieren múltiples puntos
+        self.puntos_temp = []
         self.figuras = []
 
-        # Estado especial para polígonos y Bézier
+        # Estado para lápiz (dibujo a mano alzada)
+        self.modo_lapiz = False
+        self.puntos_lapiz = []
+
+        # Estado para polígonos y Bézier
         self.modo_poligono = False
         self.vertices_poligono = []
         self.modo_bezier = False
@@ -128,6 +188,7 @@ class GraficadorApp:
 
         self.limpiar_canvas()
         self.botones = []
+        self.botones_color = []
         self._crear_botones()
 
     def limpiar_canvas(self):
@@ -157,8 +218,9 @@ class GraficadorApp:
                         b.activo = (b.texto == nombre.replace('_', ' '))
             return _cb
 
-        # Herramientas con colores personalizados - VALORES CORREGIDOS
+        # Herramientas con colores personalizados
         herramientas = [
+            ("Lápiz", "Lapiz", (50, 50, 50), (80, 80, 80)),
             ("Linea DDA", "Linea_DDA", (255, 99, 71), (255, 129, 101)),
             ("Linea Bresenham", "Linea_Bresenham", (30, 144, 255), (60, 174, 255)),
             ("Circulo", "Circulo", (50, 205, 50), (80, 235, 80)),
@@ -179,8 +241,38 @@ class GraficadorApp:
                 btn.activo = True
             self.botones.append(btn)
 
-        # Botones de acción
-        y_acc = y + len(herramientas)*(h+sep) + 20
+        # --- BOTONES DE COLOR (ANTES DE LAS ACCIONES) ---
+        y_colores = y + len(herramientas)*(h+sep) + 20
+        
+        # Título de sección
+        self.y_titulo_colores = y_colores
+        
+        # Crear botones circulares de color
+        radio = 16
+        margen = 10
+        cols = 5
+        x_inicio = x + 15
+        
+        def set_color(color):
+            def _cb():
+                self.color_actual = color
+                for bc in self.botones_color:
+                    bc.activo = (bc.color == color)
+            return _cb
+        
+        for i, (nombre, color) in enumerate(PALETA_COLORES):
+            fila = i // cols
+            col = i % cols
+            bx = x_inicio + col * (radio * 2 + margen)
+            by = y_colores + 30 + fila * (radio * 2 + margen)
+            
+            btn_color = BotonColor(bx, by, radio, color, on_click=set_color(color))
+            if color == self.color_actual:
+                btn_color.activo = True
+            self.botones_color.append(btn_color)
+
+        # Botones de acción (DESPUÉS DE LOS COLORES)
+        y_acc = y_colores + 130
         
         b_deshacer = Boton(x, y_acc, w, h, "Deshacer", 
                         on_click=self.deshacer,
@@ -192,7 +284,7 @@ class GraficadorApp:
                         color=(220, 20, 60),
                         color_hover=(250, 50, 90))
 
-        y_toggle = y_acc + 2*(h+sep) + 20
+        y_toggle = y_acc + 2*(h+sep) + 10
         
         b_grid = Boton(x, y_toggle, w, h, "Cuadrícula", 
                     on_click=self.toggle_grid,
@@ -206,13 +298,14 @@ class GraficadorApp:
 
         self.botones.extend([b_deshacer, b_limpiar, b_grid, b_axes])
 
-
     def cancelar_modos_especiales(self):
-        """Cancela modos de polígono y Bézier"""
+        """Cancela modos de polígono, Bézier y lápiz"""
         self.modo_poligono = False
         self.vertices_poligono = []
         self.modo_bezier = False
         self.puntos_bezier = []
+        self.modo_lapiz = False
+        self.puntos_lapiz = []
         self.puntos_temp = []
 
     def deshacer(self):
@@ -239,7 +332,7 @@ class GraficadorApp:
             if e.type == pygame.QUIT:
                 return False
 
-            # Manejo de teclado para finalizar polígonos
+            # Manejo de teclado
             if e.type == pygame.KEYDOWN:
                 if e.key == pygame.K_RETURN or e.key == pygame.K_SPACE:
                     if self.modo_poligono and len(self.vertices_poligono) >= 3:
@@ -255,8 +348,13 @@ class GraficadorApp:
                     mx = e.pos[0] - self.canvas_rect.x
                     my = e.pos[1] - self.canvas_rect.y
 
+                    # Modo LÁPIZ (dibujo a mano alzada)
+                    if self.herramienta == "Lapiz":
+                        self.modo_lapiz = True
+                        self.puntos_lapiz = [(mx, my)]
+
                     # Modo polígono
-                    if self.herramienta == "Poligono":
+                    elif self.herramienta == "Poligono":
                         self.modo_poligono = True
                         self.vertices_poligono.append((mx, my))
 
@@ -273,7 +371,16 @@ class GraficadorApp:
                         self.puntos_temp = [(mx, my)]
 
             elif e.type == pygame.MOUSEMOTION:
-                if self.dibujando and len(self.puntos_temp) > 0:
+                # Modo lápiz: capturar movimiento mientras se mantiene presionado
+                if self.modo_lapiz and self.canvas_rect.collidepoint(e.pos):
+                    mx = e.pos[0] - self.canvas_rect.x
+                    my = e.pos[1] - self.canvas_rect.y
+                    mx = max(0, min(self.canvas.get_width()-1, mx))
+                    my = max(0, min(self.canvas.get_height()-1, my))
+                    self.puntos_lapiz.append((mx, my))
+
+                # Preview para figuras normales
+                elif self.dibujando and len(self.puntos_temp) > 0:
                     mx = e.pos[0] - self.canvas_rect.x
                     my = e.pos[1] - self.canvas_rect.y
                     mx = max(0, min(self.canvas.get_width()-1, mx))
@@ -284,15 +391,25 @@ class GraficadorApp:
                         self.puntos_temp[1] = (mx, my)
 
             elif e.type == pygame.MOUSEBUTTONUP and e.button == 1:
+                # Finalizar dibujo con lápiz
+                if self.modo_lapiz:
+                    self._finalizar_lapiz()
+                    self.modo_lapiz = False
+
+                # Finalizar figura normal
                 if self.dibujando:
                     self.dibujando = False
                     if len(self.puntos_temp) == 2:
                         self._guardar_figura_normal()
                     self.puntos_temp = []
 
-        # Manejo de botones
+        # Manejo de botones de herramientas
         for b in self.botones:
             b.handle(eventos)
+
+        # Manejo de botones de color
+        for bc in self.botones_color:
+            bc.handle(eventos)
 
         return True
 
@@ -302,7 +419,7 @@ class GraficadorApp:
         figura = {
             "tipo": self.herramienta,
             "puntos": [p0, p1],
-            "color": COLORES_FIGURAS.get(self.herramienta, (0, 0, 0))
+            "color": self.color_actual
         }
         self.figuras.append(figura)
         self._dibujar_figura(self.canvas, figura)
@@ -313,7 +430,7 @@ class GraficadorApp:
             figura = {
                 "tipo": "Poligono",
                 "puntos": self.vertices_poligono.copy(),
-                "color": COLORES_FIGURAS["Poligono"]
+                "color": self.color_actual
             }
             self.figuras.append(figura)
             self._dibujar_figura(self.canvas, figura)
@@ -326,12 +443,24 @@ class GraficadorApp:
             figura = {
                 "tipo": "Bezier",
                 "puntos": self.puntos_bezier.copy(),
-                "color": COLORES_FIGURAS["Bezier"]
+                "color": self.color_actual
             }
             self.figuras.append(figura)
             self._dibujar_figura(self.canvas, figura)
         self.modo_bezier = False
         self.puntos_bezier = []
+
+    def _finalizar_lapiz(self):
+        """Finaliza y guarda un trazo a mano alzada"""
+        if len(self.puntos_lapiz) >= 2:
+            figura = {
+                "tipo": "Lapiz",
+                "puntos": self.puntos_lapiz.copy(),
+                "color": self.color_actual
+            }
+            self.figuras.append(figura)
+            self._dibujar_figura(self.canvas, figura)
+        self.puntos_lapiz = []
 
     def _dibujar_figura(self, surface, f):
         """Dibuja una figura usando algoritmos manuales"""
@@ -339,7 +468,15 @@ class GraficadorApp:
         puntos_coords = f["puntos"]
         color = f["color"]
 
-        if tipo == "Linea_DDA" and len(puntos_coords) == 2:
+        if tipo == "Lapiz" and len(puntos_coords) >= 2:
+            # Dibujar líneas conectando todos los puntos del trazo
+            for i in range(len(puntos_coords) - 1):
+                p0 = puntos_coords[i]
+                p1 = puntos_coords[i + 1]
+                pts = linea_bresenham(p0[0], p0[1], p1[0], p1[1])
+                dibujar_puntos(surface, pts, color)
+
+        elif tipo == "Linea_DDA" and len(puntos_coords) == 2:
             p0, p1 = puntos_coords
             pts = linea_dda(p0[0], p0[1], p1[0], p1[1])
             dibujar_puntos(surface, pts, color)
@@ -366,7 +503,6 @@ class GraficadorApp:
 
         elif tipo == "Triangulo" and len(puntos_coords) == 2:
             p0, p1 = puntos_coords
-            # Triángulo equilátero aproximado
             cx = (p0[0] + p1[0]) // 2
             pts = triangulo(p0[0], p0[1], p1[0], p1[1], cx, p0[1] - abs(p1[0]-p0[0]))
             dibujar_puntos(surface, pts, color)
@@ -386,6 +522,15 @@ class GraficadorApp:
 
     def _dibujar_preview(self, surface):
         """Dibuja vista previa mientras se arrastra"""
+        # Preview de trazo a mano alzada
+        if self.modo_lapiz and len(self.puntos_lapiz) >= 2:
+            for i in range(len(self.puntos_lapiz) - 1):
+                p0 = self.puntos_lapiz[i]
+                p1 = self.puntos_lapiz[i + 1]
+                pts = linea_bresenham(p0[0], p0[1], p1[0], p1[1])
+                dibujar_puntos(surface, pts, self.color_actual)
+
+        # Preview de figuras normales
         if self.dibujando and len(self.puntos_temp) == 2:
             preview = {
                 "tipo": self.herramienta,
@@ -425,9 +570,17 @@ class GraficadorApp:
                            (ANCHO - ANCHO_PANEL + 15, 60), 
                            (ANCHO - 15, 60), 3)
 
-            # Botones
+            # Botones de herramientas
             for b in self.botones:
                 b.draw(self.screen)
+
+            # Sección de colores
+            titulo_colores = self.font_subtitle.render("Colores", True, (100, 200, 255))
+            self.screen.blit(titulo_colores, (ANCHO - ANCHO_PANEL + 15, self.y_titulo_colores))
+            
+            # Botones de color
+            for bc in self.botones_color:
+                bc.draw(self.screen)
 
             # Canvas con preview
             preview_surface = self.canvas.copy()
@@ -439,7 +592,10 @@ class GraficadorApp:
 
             # Instrucciones
             info_y = ALTO - 60
-            if self.modo_poligono:
+            if self.modo_lapiz:
+                txt1 = self.font_small.render("Lápiz: Mantén presionado y dibuja", True, (200, 200, 210))
+                self.screen.blit(txt1, (20, info_y))
+            elif self.modo_poligono:
                 txt1 = self.font_small.render("Polígono: Clic para agregar vértices", True, (200, 200, 210))
                 txt2 = self.font_small.render("ENTER/ESPACIO para finalizar, ESC para cancelar", True, (200, 200, 210))
                 self.screen.blit(txt1, (20, info_y))
@@ -457,6 +613,7 @@ class GraficadorApp:
             self.clock.tick(FPS)
 
         pygame.quit()
+
 
 # -----------------------------
 # Ejecutar
