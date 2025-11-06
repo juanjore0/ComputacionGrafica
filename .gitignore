@@ -9,6 +9,7 @@ prueba/
 .venv/
 build/
 dist/
+Assets/
 *.spec
 
 #archivos .rar
