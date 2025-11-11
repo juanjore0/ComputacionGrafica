@@ -4,14 +4,16 @@ from constantes import ANCHO, ALTO, FPS
 from nivel import Nivel
 from personaje import Personaje
 from cargador_sprites import CargadorSprites
+from menu import Menu
 
 
 class Juego:
     def __init__(self):
         pygame.init()
         self.pantalla = pygame.display.set_mode((ANCHO, ALTO))
-        pygame.display.set_caption('Demo Suelo Dedicado')
+        pygame.display.set_caption('Can You Go?')
         self.clock = pygame.time.Clock()
+        self.estado = 'MENU'  # Estados: MENU, JUGANDO, PAUSA, GAME_OVER
 
         # Rutas
         base = os.path.dirname(os.path.abspath(__file__))
@@ -31,9 +33,8 @@ class Juego:
         try:
             elementos = CargadorSprites.cargar_elementos_solidos(ruta_suelo, escala=(95, 47))
             
-            # Usamos el suelo con césped (sprite0) como tile principal
             if elementos and 'sprite0' in elementos:
-                self.tile_suelo = elementos['sprite0'][0]  # Tomar el primer frame
+                self.tile_suelo = elementos['sprite0'][0]
                 print("✓ Suelo cargado correctamente (sprite0)")
             else:
                 raise Exception("No se encontró 'sprite0' en los elementos sólidos")
@@ -43,11 +44,11 @@ class Juego:
             self.tile_suelo = pygame.Surface((95, 47))
             self.tile_suelo.fill((150, 110, 40))
         
-        # Cargar spritesheet del personaje con todas las animaciones
+        # Cargar spritesheet del personaje
         try:
             self.animaciones = CargadorSprites.cargar_animaciones_jugador(
                 ruta_personaje, 
-                escala=(112, 112)  # Doble del tamaño original (56x56 -> 112x112)
+                escala=(112, 112)
             )
             
             if self.animaciones:
@@ -63,6 +64,14 @@ class Juego:
             self.pj_imagen.fill((0, 255, 0))
             self.animaciones = None
         
+        # Inicializar nivel y personaje
+        self.inicializar_nivel()
+        
+        # Crear menú
+        self.menu = Menu(self.pantalla)
+
+    def inicializar_nivel(self):
+        """Inicializa o reinicia el nivel del juego"""
         # Mapa simplificado
         self.mapa = [
             [0,0,0,0,0,0,0,0,1,0,0,0,0,0],
@@ -73,29 +82,47 @@ class Juego:
         ]
         self.nivel = Nivel(self.mapa, self.tile_suelo)
         
-        # Calcular posición inicial sobre una plataforma
+        # Calcular posición inicial
         tile_alto = self.tile_suelo.get_height()
-        posicion_y_segura = 3 * tile_alto - 70  # Fila 3 del mapa, ajustado para estar encima
+        posicion_y_segura = 3 * tile_alto - 70
         
         self.personaje = Personaje(100, posicion_y_segura, self.pj_imagen, self.animaciones)
         self.todas = pygame.sprite.Group(self.personaje)
         
-        # Debug
-        print(f"Personaje creado en posición: ({self.personaje.rect.x}, {self.personaje.rect.y})")
-        print(f"Tamaño del personaje: {self.personaje.rect.width}x{self.personaje.rect.height}")
-        print(f"Imagen del personaje cargada: {self.pj_imagen is not None}")
-        print(f"Animaciones cargadas: {self.animaciones is not None}")
-        print(f"Altura de tile: {tile_alto}")
-        print(f"Número de plataformas: {len(self.nivel.plataformas)}")
-
+        print(f"Nivel inicializado - Personaje en: ({self.personaje.rect.x}, {self.personaje.rect.y})")
     
-    def bucle(self):
+    def mostrar_menu(self):
+        """Muestra el menú principal"""
+        resultado = self.menu.mostrar(self.clock, FPS)
+        
+        if resultado == 'jugar':
+            self.estado = 'JUGANDO'
+            self.inicializar_nivel()  # Reiniciar nivel al empezar
+            return True
+        elif resultado == 'salir':
+            return False
+        
+        return True
+    
+    def bucle_juego(self):
+        """Bucle principal del juego"""
         corriendo = True
+        
         while corriendo:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     corriendo = False
+                
+                # Pausa con ESC
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        self.estado = 'MENU'
+                        self.menu.activo = True
+                        resultado = self.mostrar_menu()
+                        if not resultado:
+                            corriendo = False
             
+            # Actualizar
             self.personaje.update(self.nivel.plataformas)
             
             # Dibujar fondo
@@ -104,18 +131,32 @@ class Juego:
             # Dibujar nivel
             self.nivel.dibujar(self.pantalla)
             
-            # Debug: Dibujar hitboxes
-            pygame.draw.rect(self.pantalla, (255, 0, 0), self.personaje.rect, 2)
-            pygame.draw.rect(self.pantalla, (0, 255, 0), self.personaje.hitbox, 2)
+            # Debug: Dibujar hitboxes (comentar para versión final)
+            # pygame.draw.rect(self.pantalla, (255, 0, 0), self.personaje.rect, 2)
+            # pygame.draw.rect(self.pantalla, (0, 255, 0), self.personaje.hitbox, 2)
             
             # Dibujar jugador
             self.todas.draw(self.pantalla)
             
-            # Mostrar posición cada cierto tiempo
-            if pygame.time.get_ticks() % 1000 < 16:
-                print(f"Pos: ({self.personaje.rect.x}, {self.personaje.rect.y}), Suelo: {self.personaje.en_suelo}")
+            # Mostrar FPS (opcional)
+            fuente = pygame.font.Font(None, 30)
+            fps_texto = fuente.render(f"FPS: {int(self.clock.get_fps())}", True, (255, 255, 255))
+            self.pantalla.blit(fps_texto, (10, 10))
             
             pygame.display.flip()
             self.clock.tick(FPS)
+        
+        return False
+    
+    def ejecutar(self):
+        """Método principal que controla el flujo del juego"""
+        corriendo = True
+        
+        while corriendo:
+            if self.estado == 'MENU':
+                corriendo = self.mostrar_menu()
+            
+            elif self.estado == 'JUGANDO':
+                corriendo = self.bucle_juego()
         
         pygame.quit()
