@@ -24,13 +24,12 @@ class Personaje(pygame.sprite.Sprite):
         self.rect.x = x
         self.rect.y = y
 
-        # HITBOX CORREGIDA - más ancha y mejor posicionada
-        hitbox_ancho = 50  # Un poco más ancha para mejor detección
-        hitbox_alto = 65   # Más baja, solo para los pies
+        # HITBOX CORREGIDA
+        hitbox_ancho = 50
+        hitbox_alto = 65
         
-        # Ajustar offsets - la hitbox debe estar en la parte inferior del sprite
         self.hitbox_offset_x = (self.rect.width - hitbox_ancho) // 2
-        self.hitbox_offset_y = self.rect.height - hitbox_alto  # Pegada completamente abajo
+        self.hitbox_offset_y = self.rect.height - hitbox_alto
         
         self.hitbox = pygame.Rect(
             self.rect.x + self.hitbox_offset_x,
@@ -125,28 +124,30 @@ class Personaje(pygame.sprite.Sprite):
         if self.vel_y > 20:
             self.vel_y = 20
         
-        # PRIMERO mover en Y y verificar colisiones verticales
+        # ===== MOVIMIENTO MEJORADO CON COLISIONES SUAVIZADAS =====
+        
+        # Mover horizontalmente y verificar colisiones
+        self.rect.x += self.vel_x
+        self.actualizar_hitbox()
+        self.colision_horizontal(plataformas)
+        
+        # Mover verticalmente y verificar colisiones
         self.rect.y += self.vel_y
         self.actualizar_hitbox()
         self.en_suelo = False
         self.colision_vertical(plataformas)
         
-        # LUEGO mover en X y verificar colisiones horizontales
-        self.rect.x += self.vel_x
-        self.actualizar_hitbox()
-        self.colision_horizontal(plataformas)
-        
         # Límites de pantalla
         if self.rect.left < 0:
             self.rect.left = 0
+            self.actualizar_hitbox()
         if self.rect.right > ANCHO:
             self.rect.right = ANCHO
-        if self.rect.top > ALTO:  # Si cae fuera de la pantalla, resetear
+            self.actualizar_hitbox()
+        if self.rect.top > ALTO:
             self.rect.y = 0
             self.vel_y = 0
-        
-        # Actualizar hitbox después de todos los movimientos
-        self.actualizar_hitbox()
+            self.actualizar_hitbox()
         
         # Actualizar animación
         self.actualizar_animacion()
@@ -157,28 +158,41 @@ class Personaje(pygame.sprite.Sprite):
         self.hitbox.y = self.rect.y + self.hitbox_offset_y
     
     def colision_horizontal(self, plataformas):
+        """Maneja colisiones horizontales de forma suavizada"""
         for plataforma in plataformas:
             if self.hitbox.colliderect(plataforma):
                 if self.vel_x > 0:  # Moviendo a la derecha
-                    self.rect.right = plataforma.left - self.hitbox_offset_x
-                    self.actualizar_hitbox()
+                    # Ajustar para que la hitbox quede justo al lado de la plataforma
+                    self.hitbox.right = plataforma.left
+                    # Actualizar rect basándose en la nueva posición de hitbox
+                    self.rect.x = self.hitbox.x - self.hitbox_offset_x
+                    self.vel_x = 0  # Detener movimiento horizontal
+                    
                 elif self.vel_x < 0:  # Moviendo a la izquierda
-                    self.rect.left = plataforma.right - self.hitbox_offset_x
-                    self.actualizar_hitbox()
+                    # Ajustar para que la hitbox quede justo al lado de la plataforma
+                    self.hitbox.left = plataforma.right
+                    # Actualizar rect basándose en la nueva posición de hitbox
+                    self.rect.x = self.hitbox.x - self.hitbox_offset_x
+                    self.vel_x = 0  # Detener movimiento horizontal
     
     def colision_vertical(self, plataformas):
+        """Maneja colisiones verticales"""
         for plataforma in plataformas:
             if self.hitbox.colliderect(plataforma):
-                if self.vel_y > 0:  # Cayendo (sobre la plataforma)
-                    # Posicionar el personaje justo encima de la plataforma
-                    self.rect.bottom = plataforma.top
+                if self.vel_y > 0:  # Cayendo
+                    # Ajustar para que la hitbox quede justo encima de la plataforma
+                    self.hitbox.bottom = plataforma.top
+                    # Actualizar rect basándose en la nueva posición de hitbox
+                    self.rect.y = self.hitbox.y - self.hitbox_offset_y
                     self.vel_y = 0
                     self.en_suelo = True
-                    self.actualizar_hitbox()
+                    
                 elif self.vel_y < 0:  # Saltando (golpea desde abajo)
-                    self.rect.top = plataforma.bottom
+                    # Ajustar para que la hitbox quede justo debajo de la plataforma
+                    self.hitbox.top = plataforma.bottom
+                    # Actualizar rect basándose en la nueva posición de hitbox
+                    self.rect.y = self.hitbox.y - self.hitbox_offset_y
                     self.vel_y = 0
-                    self.actualizar_hitbox()
     
     def actualizar_animacion(self):
         if self.animaciones is None:
@@ -198,7 +212,6 @@ class Personaje(pygame.sprite.Sprite):
         
         # Si es una animación estática y ya llegó al último frame, no avanzar
         if self.animacion_actual in animaciones_estaticas and self.frame_actual == frames_disponibles - 1:
-            # No incrementar contador, mantener el último frame
             pass
         else:
             # Incrementar contador de frames
@@ -219,14 +232,12 @@ class Personaje(pygame.sprite.Sprite):
                         self.animacion_actual = 'idle'
                         self.frame_actual = 0
                     elif self.animacion_actual in animaciones_estaticas:
-                        # Quedarse en el último frame
                         self.frame_actual = frames_disponibles - 1
                     elif self.animacion_actual == 'hurt':
                         self.animacion_bloqueada = False
                         self.animacion_actual = 'idle'
                         self.frame_actual = 0
                     else:
-                        # Animaciones cíclicas normales (run, jump, etc.)
                         self.frame_actual = 0
         
         # Obtener el sprite actual
@@ -241,5 +252,4 @@ class Personaje(pygame.sprite.Sprite):
         self.image = sprite
         self.rect = self.image.get_rect()
         self.rect.center = pos_anterior
-        # Actualizar hitbox después de cambiar la animación
         self.actualizar_hitbox()
