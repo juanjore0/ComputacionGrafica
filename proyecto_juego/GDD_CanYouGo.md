@@ -19,11 +19,9 @@ La progresión del juego se desarrolla mediante **niveles secuenciales**, donde 
 
 ### Objetivos del Jugador:
 - **Superar obstáculos progresivos**: El jugador debe atravesar plataformas, saltar abismos, evitar trampas que representan los desafíos exagerados del relato del abuelo.
-- **Recolectar objetos**: Monedas o libros que otorgan puntos adicionales.
-- **Completar todos los niveles**: Cada nivel representa una parte del camino a la escuela, y el objetivo final es llegar sano y salvo al destino.
-- **Mejorar el rendimiento**: Obtener el mejor tiempo y puntaje posible para desbloquear logros y registrar récords.
+- **Recolectar libros**: Un libro por nivel, representando los conocimientos adquiridos en el camino.
+- **Completar todos los niveles**: Cada nivel representa una parte del camino a la escuela, y el objetivo final es llegar al destino con los cinco libros recolectados.
 
----
 
 ## 🔁 3. Estructura de Navegación del Juego
 
@@ -34,17 +32,15 @@ La progresión del juego se desarrolla mediante **niveles secuenciales**, donde 
               ↓
       [Menú Principal]
          ├── [Jugar]
-         ├── [Seleccionar nivel]
          └── [Salir]
 ```
 
 ### 3.2 Descripción de secciones:
 
-- **Intro**: Pantalla animada que muestra al abuelo sentado con su nieto, comenzando a contar su historia con diálogos introductorios y música nostálgica de fondo
-- **Menú Principal**: Interfaz con el título del juego y opciones claras para navegar. Fondo con ilustración del abuelo y el nieto
-- **Jugar**: Inicia la aventura del juego, cargando el primer nivel del recorrido hacia la escuela
-- **Seleccionar nivel**: Interfaz que nos envia al menu donde podemos ver los niveles que hemos pasado junto con el nivel de estrellas obtenido por nivel
-- **Salir**: Cierra el juego con confirmación previa
+- **Intro**: Pantalla animada que muestra al abuelo sentado con su nieto haciendo una fogata, comenzando a contar su historia con diálogos introductorios y música nostálgica de fondo.
+- **Menú Principal**: Interfaz con el título del juego y opciones claras para navegar. Fondo con ilustración del paisaje alrededor de la escuela.
+- **Jugar**: Inicia la aventura del juego, cargando el primer nivel del recorrido hacia la escuela. Los niveles avanzan de forma automática, sin opción de selección.
+- **Salir**: Cierra el juego con confirmación previa.
 
 ---
 
@@ -54,23 +50,21 @@ La progresión del juego se desarrolla mediante **niveles secuenciales**, donde 
 El juego se desarrolla en un **entorno rural/suburbano** de mediados del siglo XX, con caminos de tierra, pequeños pueblos y bosques.
 
 ### Ambientación:
-Cada nivel representa una sección diferente del camino: el pueblo al amanecer, el bosque denso, el cruce del río, la montaña rocosa, y finalmente, la llegada a la escuela.
+Cada nivel representa una sección diferente del camino en diferentes horarios del día: el pueblo al amanecer, el bosque denso, el cruce del río, la montaña rocosa y finalmente, la llegada a la escuela.
 
 ### Personajes principales:
 - **El Abuelo (joven)**: Protagonista jugable. Un niño/adolescente decidido y valiente que debe llegar a la escuela pese a todos los obstáculos
-- **El Abuelo (anciano)**: Narrador de la historia, aparece en cinemáticas entre niveles contando detalles al nieto
+- **El Abuelo (anciano)**: Narrador de la historia.
 - **El Nieto**: Personaje secundario que escucha fascinado las historias de su abuelo
 
 ### Obstáculos:
-- Elementos naturales (rocas rodantes, troncos, espinas)
-- Trampas del terreno (agujeros)
+- Elementos naturales (rocas, troncos, desniveles, charcos de agua y agujeros).
 
 ### Conflicto central:
 El desafío diario de **llegar a la escuela** superando innumerables obstáculos que, aunque exagerados en el relato nostálgico del abuelo.
 
 ### Desenlace:
-Al completar todos los niveles, el abuelo joven finalmente llega a la escuela. La cinemática final muestra el regreso al presente, donde el abuelo termina su historia.
-
+Al completar todos los niveles, el abuelo joven finalmente llega a la escuela.
 ---
 
 ## ⚙️ 5. Mecánicas del Juego
@@ -79,17 +73,17 @@ Al completar todos los niveles, el abuelo joven finalmente llega a la escuela. L
 - **Moverse**: Izquierda y derecha para desplazarse horizontalmente
 - **Saltar**: Saltar sobre obstáculos y alcanzar plataformas superiores
 - **Agacharse**: Evitar proyectiles u obstáculos bajos
-- **Recolectar objetos**: Monedas y otros coleccionables
-- **Interactuar**: Con palancas, puertas o elementos del entorno
+- **Recolectar libros**: 
+- **Interactuar**: puertas o elementos del entorno
 
-### Interacción con obstáculos:
-- **Trampas ambientales**: Pinchos, pozos, rocas que caen
-- **Plataformas móviles**: Troncos flotantes, plataformas que se mueven
-- **Zonas de daño**: Contacto con enemigos o trampas reduce la vida
+### Reglas de juego:
+- El jugador cuenta con 3 vidas totales durante toda la partida.
+- Al perder las 3 vidas, el juego termina y debe reiniciarse.
+- El juego no incluye enemigos ni daño, pero puede haber caídas o errores de salto que hagan perder una vida.
 
 ### Reglas de victoria y derrota:
-- **Victoria**: Llegar al final del nivel (la escuela en el nivel final)
-- **Derrota**: Perder todas las vidas (3 vidas por partida) o quedarse sin tiempo en niveles con cronómetro
+- **Victoria**: Llegar al final del último nivel con los cinco libros recolectados.
+- **Derrota**: Perder las tres vidas antes de llegar al final.
 
 ---
 
@@ -106,7 +100,7 @@ Al completar todos los niveles, el abuelo joven finalmente llega a la escuela. L
 
 ## 🗺️ 7. Diseño de Niveles
 
-### Cantidad de niveles: **4 niveles principales + 1 nivel final**
+### Cantidad de niveles: **5 Niveles secuenciales**
 
 ### Descripción de niveles:
 
@@ -142,7 +136,7 @@ Al completar todos los niveles, el abuelo joven finalmente llega a la escuela. L
 
 
 ### Progresión de dificultad:
-Cada nivel introduce **nuevas mecánicas** mientras aumenta la complejidad de los patrones de plataformas y la velocidad de los obstáculos. Los niveles finales combinan elementos de niveles anteriores.
+Cada nivel incrementa la complejidad de los saltos y plataformas, manteniendo una experiencia tranquila y narrativa.
 
 ---
 
@@ -154,13 +148,11 @@ Cada nivel introduce **nuevas mecánicas** mientras aumenta la complejidad de lo
 - Escala coherente de 32x32 o 64x64 píxeles para personajes
 
 ### Recursos gráficos:
-- **Sprites del protagonista**: idle, caminar, saltar, agacharse, daño
+- **Sprites del protagonista**: idle, caminar, saltar, agacharse,
 - **Escenarios**: fondos de pueblo, bosque, río, montaña
-- **Objetos coleccionables**: monedas doradas y libros
+- **Objetos coleccionables**: libros
 - **Plataformas y tiles**: tierra, piedra, madera, pasto
-- **UI**: marcos, botones, iconos de vida, temporizador
-
-*[Aquí se deben anexar todos los sprites y recursos gráficos utilizados]*
+- **UI**: marcos, botones, iconos de vida y contador de libros
 
 
 ### Sistema de animación:
@@ -201,8 +193,7 @@ Cada nivel introduce **nuevas mecánicas** mientras aumenta la complejidad de lo
 
 ### Indicadores en pantalla (HUD):
 - **Vidas**: Iconos de corazones (3 máximo) en esquina superior izquierda
-- **Tiempo**: Cronómetro en la parte superior central (si aplica)
-- **Objetos recolectados**: Contador de monedas/libros con icono
+- **Objetos recolectados**: Contador de libros con icono
 - **Nivel actual**: Indicador de progreso (ej. "Nivel 2/5")
 
 ---
@@ -256,71 +247,46 @@ class Animacion:
 
 ### Organización del proyecto:
 ```
-/CanYouGo
-  /src
-    - main.py              # Punto de entrada del juego
-    - juego.py             # Clase principal Juego
-    - personaje.py         # Clase Personaje
-    - enemigo.py           # Clases de enemigos
-    - nivel.py             # Clase Nivel
-    - plataforma.py        # Clase Plataforma
-    - coleccionable.py     # Clase Coleccionable
-    - pantallas.py         # Clases de pantallas (Menú, Pausa, etc.)
-    - animacion.py         # Clase Animacion
-    - constantes.py        # Constantes globales (tamaños, colores, etc.)
-  /assets
-    /images
-      /sprites
-        - abuelo.png
-        - enemigos.png
-      /backgrounds
-        - pueblo.png
-        - bosque.png
-        - rio.png
-        - montana.png
-      /ui
-        - botones.png
-        - hud.png
-    /sounds
-      /music
-        - menu.ogg
-        - nivel1.ogg
-        - nivel2.ogg
-      /effects
-        - salto.wav
-        - moneda.wav
-        - dano.wav
-  /niveles
-    - nivel1.json          # Configuración del nivel 1
-    - nivel2.json
-    - nivel3.json
-    - nivel4.json
-    - nivel5.json
-  /data
-    - puntajes.json        # Registro de puntajes
-  README.md                # Documentación del proyecto
-  requirements.txt         # Dependencias (pygame, etc.)
+└── 📁proyecto_juego
+    └── 📁assets
+        └── 📁images
+            └── 📁backgrounds
+                ├── Background_0.png
+                ├── Background.png
+            └── 📁decorations
+                ├── escuela.png
+            └── 📁menus
+                ├── inicio_play.png
+                ├── inicio_quit.png
+                ├── inicio.ase
+                ├── inicio.png
+            └── 📁player
+                ├── player.png
+            └── 📁test_scenes
+                ├── test_1.png
+                ├── test_2.png
+            └── 📁tiles
+                ├── tiles.png
+    └── 📁src
+        └── 📁__pycache__
+            ├── cargador_sprites.cpython-312.pyc
+            ├── constantes.cpython-312.pyc
+            ├── juego.cpython-312.pyc
+            ├── menu.cpython-312.pyc
+            ├── nivel.cpython-312.pyc
+            ├── personaje.cpython-312.pyc
+        ├── cargador_sprites.py
+        ├── constantes.py
+        ├── juego.py
+        ├── main.py
+        ├── menu.py
+        ├── nivel.py
+        ├── pantalla.py
+        ├── personaje.py
+        ├── plataforma.py
+    └── GDD_CanYouGo.md
 ```
 
-### Registro de puntajes:
-- Archivo **JSON** (`puntajes.json`) que almacena: nombre, puntaje, tiempo, fecha
-- Estructura de datos:
-```json
-{
-  "puntajes": [
-    {
-      "nombre": "Jugador1",
-      "puntaje": 15000,
-      "tiempo": "05:23",
-      "fecha": "2025-11-06"
-    }
-  ]
-}
-```
-- Sistema de lectura al inicio y escritura al completar el juego
-- Ordenamiento por puntaje descendente, mostrando top 10
-
----
 
 ## 📅 12. Cronograma de Desarrollo
 
