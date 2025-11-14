@@ -42,8 +42,8 @@ class Personaje(pygame.sprite.Sprite):
         self.vel_x = 0
         self.vel_y = 0
         self.gravedad = 0.8
-        self.fuerza_salto = -15
-        self.velocidad = 5
+        self.fuerza_salto = -14
+        self.velocidad = 4
         self.en_suelo = False
         
         # Control de estados

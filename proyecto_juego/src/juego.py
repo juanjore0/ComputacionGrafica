@@ -17,7 +17,7 @@ class Juego:
 
         # Rutas
         base = os.path.dirname(os.path.abspath(__file__))
-        ruta_fondo = os.path.join(base, '..', 'assets', 'images', 'backgrounds', 'Background_0.png')
+        ruta_fondo = os.path.join(base, '..', 'assets', 'images', 'backgrounds', 'Background.png')
         ruta_suelo = os.path.join(base, '..', 'assets', 'images', 'tiles', 'tiles.png')
         ruta_personaje = os.path.join(base, '..', 'assets', 'images', 'player', 'player.png')
         
@@ -74,11 +74,19 @@ class Juego:
         """Inicializa o reinicia el nivel del juego"""
         # Mapa simplificado
         self.mapa = [
-            [0,0,0,0,0,0,0,0,1,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,1,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0,0,0,0,1,1],
-            [1,1,1,1,1,1,1,1,1,1,0,0,0,0],
-            [0,0,0,1,0,0,0,1,1,1,0,0,0,0],
+            [0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,1],
+            [0,0,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,1,1],
         ]
         self.nivel = Nivel(self.mapa, self.tile_suelo)
         
