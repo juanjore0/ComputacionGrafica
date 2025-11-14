@@ -46,6 +46,16 @@ class Personaje(pygame.sprite.Sprite):
         self.velocidad = 4
         self.en_suelo = False
         
+
+        # Inventario y puntos
+        self.puntos = 0 
+
+        # ---Vidas, Puntos e Invencibilidad ---
+        self.vidas = 3
+        self.invencible = False
+        self.tiempo_invencible = 0
+        self.duracion_invencibilidad = 1200 # 1.2 segundos en milisegundos
+
         # Control de estados
         self.atacando = False
         self.agachado = False
@@ -54,9 +64,39 @@ class Personaje(pygame.sprite.Sprite):
         # Forzar actualización inicial de la animación
         if self.animaciones:
             self.actualizar_animacion()
-        
+
+     # ---Método para Recibir Daño ---       
+    def recibir_daño(self, cantidad):
+        # Solo recibe daño si NO está invencible y no está muerto
+        if not self.invencible and self.vidas > 0:
+            self.vidas -= cantidad
+            self.invencible = True
+            self.tiempo_invencible = pygame.time.get_ticks() # Momento actual
+            print(f"¡AUCH! Vidas restantes: {self.vidas}")
+            
+            # Activar animación de "herido" (si la tienes)
+            if 'hurt' in self.animaciones:
+                self.animacion_actual = 'hurt'
+                self.animacion_bloqueada = True
+                self.frame_actual = 0
+            
+            if self.vidas <= 0:
+                print("¡HAS PERDIDO!")
+                # Activar animación de "muerte" (si la tienes)
+                if 'death' in self.animaciones:
+                    self.animacion_actual = 'death'
+                    self.animacion_bloqueada = True
+                    self.frame_actual = 0
+                else:
+                    self.animacion_bloqueada = False # Si no hay anim, que no se bloquee
+
+
     def update(self, plataformas):
         # Controles
+        if self.animacion_actual == 'death':
+            self.actualizar_animacion()
+            return # No permitir más acciones
+
         teclas = pygame.key.get_pressed()
         self.vel_x = 0
         
@@ -151,6 +191,26 @@ class Personaje(pygame.sprite.Sprite):
         
         # Actualizar animación
         self.actualizar_animacion()
+
+        #Lógica de Invencibilidad y Parpadeo (al final de update) ---
+        if self.invencible:
+            ahora = pygame.time.get_ticks()
+            
+            # Efecto de parpadeo (solo si está vivo)
+            if self.vidas > 0:
+                if (ahora // 100) % 2 == 0:
+                    self.image.set_alpha(100) # Semitransparente
+                else:
+                    self.image.set_alpha(255) # Visible
+                
+            # Comprobar si se acabó el tiempo de invencibilidad
+            if ahora - self.tiempo_invencible > self.duracion_invencibilidad:
+                self.invencible = False
+                self.image.set_alpha(255) # Asegurarse de que sea visible
+        else:
+            # Asegurarse de que es visible si no está invencible
+            self.image.set_alpha(255) 
+
     
     def actualizar_hitbox(self):
         """Actualiza la posición de la hitbox para que siga al sprite"""
@@ -195,59 +255,62 @@ class Personaje(pygame.sprite.Sprite):
                     self.vel_y = 0
     
     def actualizar_animacion(self):
-        if self.animaciones is None:
-            return
+        if self.animaciones is None: return
         
-        # Verificar que la animación actual existe
         if self.animacion_actual not in self.animaciones:
             self.animacion_actual = 'idle'
         
-        # Verificar que el frame actual es válido
         frames_disponibles = len(self.animaciones[self.animacion_actual])
         if self.frame_actual >= frames_disponibles:
             self.frame_actual = 0
         
-        # Para animaciones que deben quedarse en el último frame
-        animaciones_estaticas = ['crouch', 'shield', 'death']
         
-        # Si es una animación estática y ya llegó al último frame, no avanzar
-        if self.animacion_actual in animaciones_estaticas and self.frame_actual == frames_disponibles - 1:
-            pass
-        else:
-            # Incrementar contador de frames
-            self.contador_frames += 1
+        # 1. Definir qué animaciones se quedan en el último frame
+        # ¡HEMOS QUITADO 'death' DE ESTA LISTA!
+        animaciones_estaticas = ['crouch', 'shield'] 
+        
+        # 2. Avanzar el frame
+        self.contador_frames += 1
+        if self.contador_frames >= self.velocidad_animacion:
+            self.contador_frames = 0
             
-            # Cambiar al siguiente frame si es tiempo
-            if self.contador_frames >= self.velocidad_animacion:
-                self.contador_frames = 0
-                self.frame_actual += 1
-                
-                # Verificar si llegamos al final de la animación
-                if self.frame_actual >= frames_disponibles:
-                    
-                    # Desbloquear animaciones que solo se ejecutan una vez
-                    if self.animacion_actual == 'attack':
-                        self.atacando = False
-                        self.animacion_bloqueada = False
-                        self.animacion_actual = 'idle'
-                        self.frame_actual = 0
-                    elif self.animacion_actual in animaciones_estaticas:
-                        self.frame_actual = frames_disponibles - 1
-                    elif self.animacion_actual == 'hurt':
-                        self.animacion_bloqueada = False
-                        self.animacion_actual = 'idle'
-                        self.frame_actual = 0
-                    else:
-                        self.frame_actual = 0
+            # Comprobar si es una animación estática Y está en el último frame
+            if self.animacion_actual in animaciones_estaticas and self.frame_actual == frames_disponibles - 1:
+                pass # No hacer nada, quedarse en el último frame
+            else:
+                self.frame_actual += 1 # Avanzar al siguiente frame
         
-        # Obtener el sprite actual
+        # 3. Comprobar si la animación ha terminado
+        if self.frame_actual >= frames_disponibles:
+            
+            if self.animacion_actual == 'attack':
+                self.atacando = False
+                self.animacion_bloqueada = False
+                self.animacion_actual = 'idle'
+                self.frame_actual = 0
+                
+            elif self.animacion_actual == 'hurt':
+                self.animacion_bloqueada = False
+                self.animacion_actual = 'idle'
+                self.frame_actual = 0
+                
+            # --- ESTA ES LA NUEVA LÓGICA ---
+            elif self.animacion_actual == 'death':
+                self.frame_actual = frames_disponibles - 1 # Quedarse en el último frame...
+                self.animacion_bloqueada = False # ...PERO AVISAR QUE LA ANIMACIÓN TERMINÓ
+                
+            elif self.animacion_actual in animaciones_estaticas:
+                self.frame_actual = frames_disponibles - 1 # Quedarse en el último frame
+                
+            else: # Para animaciones en bucle (idle, run)
+                self.frame_actual = 0
+        
+        # (El resto de la función se queda igual)
         sprite = self.animaciones[self.animacion_actual][self.frame_actual]
         
-        # Voltear el sprite si mira a la izquierda
         if not self.mirando_derecha:
             sprite = pygame.transform.flip(sprite, True, False)
         
-        # Actualizar imagen manteniendo la posición
         pos_anterior = self.rect.center
         self.image = sprite
         self.rect = self.image.get_rect()

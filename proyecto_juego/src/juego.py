@@ -96,6 +96,8 @@ class Juego:
         
         self.personaje = Personaje(100, posicion_y_segura, self.pj_imagen, self.animaciones)
         self.todas = pygame.sprite.Group(self.personaje)
+        self.todas.add(self.nivel.grupo_coleccionables)
+        self.todas.add(self.nivel.grupo_trampas)
         
         print(f"Nivel inicializado - Personaje en: ({self.personaje.rect.x}, {self.personaje.rect.y})")
     
@@ -129,10 +131,50 @@ class Juego:
                         resultado = self.mostrar_menu()
                         if not resultado:
                             corriendo = False
-            
+
+
+            # ---Lógica de GAME OVER ---
+            # Comprobar si el jugador ha perdido
+            # (El 'not' es para que espere a que termine la anim de muerte)
+            if self.personaje.vidas <= 0 and not self.personaje.animacion_bloqueada:
+                print("Volviendo al menú por Game Over")
+                self.estado = 'MENU' # Vuelve al menú principal
+                self.menu.activo = True
+                corriendo = False # Sale del bucle de juego
+                continue # Saltar el resto del bucle
+
+            # Actualizar
+            # (Se actualiza la anim de muerte, pero no los controles)
             # Actualizar
             self.personaje.update(self.nivel.plataformas)
+            # --> LÓGICA DE COLECCIÓN <---
+            libros_recogidos = []
+            for libro in self.nivel.grupo_coleccionables:
+                if self.personaje.hitbox.colliderect(libro.rect):
+                    self.personaje.puntos += libro.valor
+                    libros_recogidos.append(libro)
+                    print(f"¡Libro recogido! Puntos: {self.personaje.puntos}")
+                    # ESPACIO PARA EL SONIDO DE RECOLECCIÓN
             
+            # Eliminar los libros recogidos DE AMBOS GRUPOS
+            if libros_recogidos:
+                self.nivel.grupo_coleccionables.remove(libros_recogidos)
+                self.todas.remove(libros_recogidos)
+            # --- FIN DE LÓGICA DE COLECCIÓN ---
+
+            # ---Lógica de Daño ---
+            # (Solo comprobar si el jugador no está invencible)
+            if not self.personaje.invencible:
+                colisiones_trampas = []
+                for trampa in self.nivel.grupo_trampas:
+                    if self.personaje.hitbox.colliderect(trampa.rect):
+                        colisiones_trampas.append(trampa)
+                
+                if colisiones_trampas:
+                    # Llamamos a 'recibir_daño' (él ya gestiona la invencibilidad)
+                    self.personaje.recibir_daño(1) 
+
+
             # Dibujar fondo
             self.pantalla.blit(self.fondo, (0, 0))
             
@@ -150,6 +192,13 @@ class Juego:
             fuente = pygame.font.Font(None, 30)
             fps_texto = fuente.render(f"FPS: {int(self.clock.get_fps())}", True, (255, 255, 255))
             self.pantalla.blit(fps_texto, (10, 10))
+
+            # ---> DIBUJAR HUD DE PUNTOS <---
+            texto_puntos = fuente.render(f"Libros: {self.personaje.puntos}", True, (255, 255, 255))
+            self.pantalla.blit(texto_puntos, (10, 40)) # Dibujarlo debajo del FPS
+            texto_vidas = fuente.render(f"Vidas: {self.personaje.vidas}", True, (255, 255, 255))
+            self.pantalla.blit(texto_vidas, (ANCHO - 150, 10))
+            
             
             pygame.display.flip()
             self.clock.tick(FPS)
