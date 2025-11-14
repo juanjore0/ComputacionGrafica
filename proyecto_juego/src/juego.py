@@ -88,6 +88,7 @@ class Juego:
         
         self.personaje = Personaje(100, posicion_y_segura, self.pj_imagen, self.animaciones)
         self.todas = pygame.sprite.Group(self.personaje)
+        self.todas.add(self.nivel.grupo_coleccionables)
         
         print(f"Nivel inicializado - Personaje en: ({self.personaje.rect.x}, {self.personaje.rect.y})")
     
@@ -124,6 +125,21 @@ class Juego:
             
             # Actualizar
             self.personaje.update(self.nivel.plataformas)
+            # --> LÓGICA DE COLECCIÓN <---
+            libros_recogidos = []
+            for libro in self.nivel.grupo_coleccionables:
+                if self.personaje.hitbox.colliderect(libro.rect):
+                    self.personaje.puntos += libro.valor
+                    libros_recogidos.append(libro)
+                    print(f"¡Libro recogido! Puntos: {self.personaje.puntos}")
+                    # ESPACIO PARA EL SONIDO DE RECOLECCIÓN
+            
+            # Eliminar los libros recogidos DE AMBOS GRUPOS
+            if libros_recogidos:
+                self.nivel.grupo_coleccionables.remove(libros_recogidos)
+                self.todas.remove(libros_recogidos)
+            # --- FIN DE LÓGICA DE COLECCIÓN ---
+
             
             # Dibujar fondo
             self.pantalla.blit(self.fondo, (0, 0))
@@ -142,6 +158,11 @@ class Juego:
             fuente = pygame.font.Font(None, 30)
             fps_texto = fuente.render(f"FPS: {int(self.clock.get_fps())}", True, (255, 255, 255))
             self.pantalla.blit(fps_texto, (10, 10))
+
+            # ---> DIBUJAR HUD DE PUNTOS <---
+            texto_puntos = fuente.render(f"Libros: {self.personaje.puntos}", True, (255, 255, 255))
+            self.pantalla.blit(texto_puntos, (10, 40)) # Dibujarlo debajo del FPS
+            
             
             pygame.display.flip()
             self.clock.tick(FPS)

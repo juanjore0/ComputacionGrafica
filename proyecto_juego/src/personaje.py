@@ -46,6 +46,10 @@ class Personaje(pygame.sprite.Sprite):
         self.velocidad = 5
         self.en_suelo = False
         
+
+        # Inventario y puntos
+        self.puntos = 0 
+        
         # Control de estados
         self.atacando = False
         self.agachado = False

@@ -1,11 +1,22 @@
 import pygame
-
+from objetos_nivel import Coleccionable, Trampa, PuntoFinal
 class Nivel:
     def __init__(self, mapa, tile_suelo):
         self.mapa = mapa
         # Recortar el tile para eliminar bordes transparentes
         self.tile_suelo = self.recortar_tile(tile_suelo)
         self.plataformas = self.crear_plataformas()
+
+
+        # Grupo para guardar los sprites de los libros
+        self.grupo_coleccionables = pygame.sprite.Group()
+        
+        # --- Ejemplo: Añadir un libro manualmente ---
+        libro1 = Coleccionable(400, 100, 'libro') 
+        self.grupo_coleccionables.add(libro1)
+        
+        libro2 = Coleccionable(600, 50, 'libro')
+        self.grupo_coleccionables.add(libro2)
     
     # --- FUNCIÓN 'recortar_tile' CORREGIDA ---
     def recortar_tile(self, tile):
