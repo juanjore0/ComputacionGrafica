@@ -34,6 +34,7 @@ class Trampa(pygame.sprite.Sprite):
         if tipo_daño == 'espinas':
             # Cargar imagen de espinas (¡ajusta la ruta!)
             self.image = pygame.image.load('assets/images/decorations/fuego.png').convert_alpha()
+            self.image = pygame.transform.scale(self.image, (40, 40))
         
         self.rect = self.image.get_rect(topleft=(x, y))
         self.daño = 1 # Vidas que quita

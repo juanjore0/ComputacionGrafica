@@ -17,6 +17,13 @@ class Nivel:
         
         libro2 = Coleccionable(600, 50, 'libro')
         self.grupo_coleccionables.add(libro2)
+
+                # --- AÑADIDO: Grupo de Trampas ---
+        self.grupo_trampas = pygame.sprite.Group()
+        
+        # -- Añadir unas espinas manualmente ---
+        espinas1 = Trampa(250,100, 'espinas') 
+        self.grupo_trampas.add(espinas1)
     
     # --- FUNCIÓN 'recortar_tile' CORREGIDA ---
     def recortar_tile(self, tile):
