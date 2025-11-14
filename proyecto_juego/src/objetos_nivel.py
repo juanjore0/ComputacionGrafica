@@ -9,13 +9,10 @@ class Coleccionable(pygame.sprite.Sprite):
         
         if self.tipo == 'libro':
             # --- Cargar imagen del libro ---
-            # (¡Asegúrate que esta ruta sea correcta!)
-            # Usa os.path.join para construir la ruta de forma segura
             try:
                 base = os.path.dirname(os.path.abspath(__file__))
-                ruta_imagen = os.path.join(base, '..', 'assets', 'images', 'decorations', 'libro.png') # ¡Inventé esta ruta! Ajústala.
+                ruta_imagen = os.path.join(base, '..', 'assets', 'images', 'decorations', 'libro.png') 
                 self.image = pygame.image.load(ruta_imagen).convert_alpha()
-                # Escalar si es necesario
                 self.image = pygame.transform.scale(self.image, (40, 40))
             except Exception as e:
                 print(f"Error cargando imagen de libro: {e}")
@@ -28,16 +25,25 @@ class Coleccionable(pygame.sprite.Sprite):
 
 #--- Clase para Trampas ---
 class Trampa(pygame.sprite.Sprite):
-    def __init__(self, x, y, tipo_daño):
+    def __init__(self, x, y, tipo='espinas'):
         super().__init__()
         
-        if tipo_daño == 'espinas':
-            # Cargar imagen de espinas (¡ajusta la ruta!)
-            self.image = pygame.image.load('assets/images/decorations/fuego.png').convert_alpha()
-            self.image = pygame.transform.scale(self.image, (40, 40))
+        self.tipo = tipo
+    
+        if self.tipo == 'espinas': 
+            try:
+                base = os.path.dirname(os.path.abspath(__file__))
+                ruta_imagen = os.path.join(base, '..', 'assets', 'images', 'decorations', 'fuego.png') 
+                self.image = pygame.image.load(ruta_imagen).convert_alpha()
+                self.image = pygame.transform.scale(self.image, (95, 47)) 
+            except Exception as e:
+                print(f"Error cargando imagen de trampa: {e}")
+                self.image = pygame.Surface((95, 47))
+                self.image.fill((255, 0, 0)) 
+            
+            self.daño = 1
         
         self.rect = self.image.get_rect(topleft=(x, y))
-        self.daño = 1 # Vidas que quita
 
 # --- Clase para el Final del Nivel ---
 class PuntoFinal(pygame.sprite.Sprite):
