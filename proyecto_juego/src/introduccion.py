@@ -68,7 +68,7 @@ class Introduccion:
         
         # Control de animación
         self.frame_actual = 0
-        self.velocidad_animacion = 10  # Cambiar frame cada 8 ticks
+        self.velocidad_animacion = 10 # Cambiar frame cada 8 ticks
         self.contador_frames = 0
         
         # Control de tiempo
