@@ -5,6 +5,7 @@ from nivel import Nivel
 from personaje import Personaje
 from cargador_sprites import CargadorSprites
 from menu import Menu
+from introduccion import Introduccion
 
 
 class Juego:
@@ -15,6 +16,7 @@ class Juego:
         self.clock = pygame.time.Clock()
         self.estado = 'MENU'  # Estados: MENU, JUGANDO, PAUSA, GAME_OVER
 
+      
         # Rutas
         base = os.path.dirname(os.path.abspath(__file__))
         ruta_fondo = os.path.join(base, '..', 'assets', 'images', 'backgrounds', 'Background.png')
@@ -69,6 +71,7 @@ class Juego:
         
         # Crear menú
         self.menu = Menu(self.pantalla)
+        self.introduccion = Introduccion(self.pantalla)
 
     def inicializar_nivel(self):
         """Inicializa o reinicia el nivel del juego"""
@@ -106,14 +109,32 @@ class Juego:
         resultado = self.menu.mostrar(self.clock, FPS)
         
         if resultado == 'jugar':
-            self.estado = 'JUGANDO'
-            self.inicializar_nivel()  # Reiniciar nivel al empezar
+            self.estado = 'INTRODUCCION'
+       
             return True
         elif resultado == 'salir':
             return False
         
         return True
-    
+
+    # Añade un nuevo método para mostrar la introducción:
+    def mostrar_introduccion(self):
+        """Muestra la introducción animada"""
+        self.introduccion.activo = True  # Resetear estado
+        self.introduccion.tiempo_transcurrido = 0
+        self.introduccion.fade_in = 0
+        
+        resultado = self.introduccion.mostrar(self.clock, FPS)
+        
+        if resultado == 'jugar':
+            self.estado = 'JUGANDO'
+            self.inicializar_nivel()  # Inicializar nivel después de la intro
+            return True
+        elif resultado == 'salir':
+            return False
+        return True
+
+
     def bucle_juego(self):
         """Bucle principal del juego"""
         corriendo = True
@@ -212,7 +233,9 @@ class Juego:
         while corriendo:
             if self.estado == 'MENU':
                 corriendo = self.mostrar_menu()
-            
+            elif self.estado == 'INTRODUCCION':
+                corriendo = self.mostrar_introduccion()
+
             elif self.estado == 'JUGANDO':
                 corriendo = self.bucle_juego()
         
