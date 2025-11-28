@@ -6,6 +6,8 @@ from personaje import Personaje
 from cargador_sprites import CargadorSprites
 from menu import Menu
 from introduccion import Introduccion
+from niveles import GestorNiveles
+
 
 
 class Juego:
@@ -14,14 +16,19 @@ class Juego:
         self.pantalla = pygame.display.set_mode((ANCHO, ALTO))
         pygame.display.set_caption('Can You Go?')
         self.clock = pygame.time.Clock()
-        self.estado = 'MENU'  # Estados: MENU, JUGANDO, PAUSA, GAME_OVER
+        self.estado = 'MENU'
+        
+        # ✅ Variable para activar/desactivar debug
+        self.debug_mode = False  # Empieza desactivado
 
+        # Gestor de niveles
+        self.gestor_niveles = GestorNiveles()
       
         # Rutas
-        base = os.path.dirname(os.path.abspath(__file__))
-        ruta_fondo = os.path.join(base, '..', 'assets', 'images', 'backgrounds', 'Background.png')
-        ruta_suelo = os.path.join(base, '..', 'assets', 'images', 'tiles', 'tiles.png')
-        ruta_personaje = os.path.join(base, '..', 'assets', 'images', 'player', 'player.png')
+        base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ruta_fondo = os.path.join(base, 'assets', 'images', 'backgrounds', 'Background.png')
+        ruta_tiles = os.path.join(base, 'assets', 'images', 'tiles', 'tiles.png')
+        ruta_personaje = os.path.join(base, 'assets', 'images', 'player', 'player.png')
         
         # Fondo
         try:
@@ -31,22 +38,63 @@ class Juego:
             self.fondo = pygame.Surface((ANCHO, ALTO))
             self.fondo.fill((40, 70, 120))
         
-        # Cargar suelo
+        # Cargar TODOS los tiles
+        print("\n═══ CARGANDO TILES ═══")
         try:
-            elementos = CargadorSprites.cargar_elementos_solidos(ruta_suelo, escala=(95, 47))
+            self.tiles_dict = CargadorSprites.cargar_elementos_solidos(
+                ruta_tiles, 
+                escala=(95, 47)
+            )
             
-            if elementos and 'sprite0' in elementos:
-                self.tile_suelo = elementos['sprite0'][0]
-                print("✓ Suelo cargado correctamente (sprite0)")
+            if self.tiles_dict:
+                print(f"✓ {len(self.tiles_dict)} tiles cargados correctamente")
             else:
-                raise Exception("No se encontró 'sprite0' en los elementos sólidos")
+                raise Exception("No se pudieron cargar los tiles")
+
 
         except Exception as e:
-            print(f"Error cargando suelo: {e}")
-            self.tile_suelo = pygame.Surface((95, 47))
-            self.tile_suelo.fill((150, 110, 40))
+            print(f"❌ Error cargando tiles: {e}")
+            tile_default = pygame.Surface((95, 47))
+            tile_default.fill((150, 110, 40))
+            self.tiles_dict = {'sprite0': [tile_default]}
+        
+        # ✅ IMPORTANTE: Cargar objetos del juego (libros, espinas, etc.)
+        print("\n═══ CARGANDO OBJETOS ═══")
+        try:
+            self.objetos_dict = CargadorSprites.cargar_objetos_juego(base)
+            
+            if self.objetos_dict:
+                print(f"✓ {len(self.objetos_dict)} objetos cargados correctamente")
+            else:
+                raise Exception("No se pudieron cargar los objetos")
+        
+        except Exception as e:
+            print(f"❌ Error cargando objetos: {e}")
+            # Crear objetos por defecto
+            libro_default = pygame.Surface((40, 40))
+            libro_default.fill((255, 0, 255))
+            espinas_default = pygame.Surface((95, 47))
+            espinas_default.fill((255, 0, 0))
+            self.objetos_dict = {
+                'libro': libro_default,
+                'espinas': espinas_default
+            }
+
+        # ✅ Cargar sprites de vidas
+        print("\n═══ CARGANDO UI ═══")
+        try:
+            self.sprites_vidas = CargadorSprites.cargar_sprites_vidas(
+                base, 
+                escala=(140, 40) 
+            )
+            print(f"✓ Sprites de vidas cargados")
+        except Exception as e:
+            print(f"❌ Error cargando sprites de vidas: {e}")
+            self.sprites_vidas = None
+
         
         # Cargar spritesheet del personaje
+        print("\n═══ CARGANDO PERSONAJE ═══")
         try:
             self.animaciones = CargadorSprites.cargar_animaciones_jugador(
                 ruta_personaje, 
@@ -56,12 +104,11 @@ class Juego:
             if self.animaciones:
                 self.pj_imagen = self.animaciones['idle'][0]
                 print("✓ Animaciones cargadas correctamente")
-                print(f"  Animaciones disponibles: {list(self.animaciones.keys())}")
             else:
                 raise Exception("No se pudieron cargar las animaciones")
                 
         except Exception as e:
-            print(f"Error cargando sprite: {e}")
+            print(f"❌ Error cargando sprite: {e}")
             self.pj_imagen = pygame.Surface((112, 112))
             self.pj_imagen.fill((0, 255, 0))
             self.animaciones = None
@@ -73,36 +120,47 @@ class Juego:
         self.menu = Menu(self.pantalla)
         self.introduccion = Introduccion(self.pantalla)
 
+
     def inicializar_nivel(self):
-        """Inicializa o reinicia el nivel del juego"""
-        # Mapa simplificado
-        self.mapa = [
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [1,1,1,1,1,1,1,1,1],
-        ]
-        self.nivel = Nivel(self.mapa, self.tile_suelo)
+        """Inicializa o reinicia el nivel actual"""
+        datos_nivel = self.gestor_niveles.obtener_nivel()
         
-        # Calcular posición inicial
-        tile_alto = self.tile_suelo.get_height()
-        posicion_y_segura = 3 * tile_alto - 70
+        if datos_nivel is None:
+            print("ERROR: No hay más niveles disponibles")
+            return
         
-        self.personaje = Personaje(100, posicion_y_segura, self.pj_imagen, self.animaciones)
+        self.nivel = Nivel(
+            datos_nivel['mapa'],      # Primer argumento: mapa
+            self.tiles_dict,          # Segundo argumento: tiles_dict
+            self.objetos_dict         # Tercer argumento: objetos_dict
+        )
+        
+        # Usar la posición de spawn del nivel
+        spawn_x = datos_nivel.get('spawn_x', 100)
+        spawn_y = datos_nivel.get('spawn_y', 300)
+        
+        self.personaje = Personaje(spawn_x, spawn_y, self.pj_imagen, self.animaciones)
         self.todas = pygame.sprite.Group(self.personaje)
         self.todas.add(self.nivel.grupo_coleccionables)
         self.todas.add(self.nivel.grupo_trampas)
+        self.todas.add(self.nivel.grupo_punto_final)
         
-        print(f"Nivel inicializado - Personaje en: ({self.personaje.rect.x}, {self.personaje.rect.y})")
+        print(f"\n╔══════════════════════════════════════════════╗")
+        print(f"║  NIVEL {self.gestor_niveles.nivel_actual + 1}/{self.gestor_niveles.total_niveles()}: {datos_nivel['nombre']:30s} ║")
+        print(f"║  Spawn: ({spawn_x}, {spawn_y})                     ║")
+        print(f"╚══════════════════════════════════════════════╝\n")
+    
+    def cargar_siguiente_nivel(self):
+        """Carga el siguiente nivel si existe"""
+        if self.gestor_niveles.siguiente_nivel():
+            print("\n🎉 ¡NIVEL COMPLETADO! Cargando siguiente nivel...")
+            self.inicializar_nivel()
+            return True
+        else:
+            print("\n🏆 ¡FELICIDADES! ¡Has completado todos los niveles!")
+            self.estado = 'MENU'
+            self.gestor_niveles.reiniciar_nivel()
+            return False
     
     def mostrar_menu(self):
         """Muestra el menú principal"""
@@ -110,17 +168,17 @@ class Juego:
         
         if resultado == 'jugar':
             self.estado = 'INTRODUCCION'
-       
+            self.gestor_niveles.reiniciar_nivel()
             return True
         elif resultado == 'salir':
             return False
         
         return True
 
-    # Añade un nuevo método para mostrar la introducción:
+
     def mostrar_introduccion(self):
         """Muestra la introducción animada"""
-        self.introduccion.activo = True  # Resetear estado
+        self.introduccion.activo = True
         self.introduccion.tiempo_transcurrido = 0
         self.introduccion.fade_in = 0
         
@@ -128,7 +186,7 @@ class Juego:
         
         if resultado == 'jugar':
             self.estado = 'JUGANDO'
-            self.inicializar_nivel()  # Inicializar nivel después de la intro
+            self.inicializar_nivel()
             return True
         elif resultado == 'salir':
             return False
@@ -144,7 +202,6 @@ class Juego:
                 if event.type == pygame.QUIT:
                     corriendo = False
                 
-                # Pausa con ESC
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         self.estado = 'MENU'
@@ -152,80 +209,107 @@ class Juego:
                         resultado = self.mostrar_menu()
                         if not resultado:
                             corriendo = False
+                    
+                    # ✅ Presionar P para activar/desactivar debug
+                    if event.key == pygame.K_p:
+                        self.debug_mode = not self.debug_mode
+                        print(f"🔍 Debug mode: {'ON ✅' if self.debug_mode else 'OFF ❌'}")
 
-
-            # ---Lógica de GAME OVER ---
-            # Comprobar si el jugador ha perdido
-            # (El 'not' es para que espere a que termine la anim de muerte)
+            # Lógica de GAME OVER
             if self.personaje.vidas <= 0 and not self.personaje.animacion_bloqueada:
                 print("Volviendo al menú por Game Over")
-                self.estado = 'MENU' # Vuelve al menú principal
+                self.estado = 'MENU'
                 self.menu.activo = True
-                corriendo = False # Sale del bucle de juego
-                continue # Saltar el resto del bucle
+                self.gestor_niveles.reiniciar_nivel()
+                corriendo = False
+                continue
 
-            # Actualizar
-            # (Se actualiza la anim de muerte, pero no los controles)
-            # Actualizar
+            # Actualizar personaje
             self.personaje.update(self.nivel.plataformas)
-            # --> LÓGICA DE COLECCIÓN <---
+            
+            # Lógica de colección de libros
             libros_recogidos = []
             for libro in self.nivel.grupo_coleccionables:
                 if self.personaje.hitbox.colliderect(libro.rect):
                     self.personaje.puntos += libro.valor
                     libros_recogidos.append(libro)
                     print(f"¡Libro recogido! Puntos: {self.personaje.puntos}")
-                    # ESPACIO PARA EL SONIDO DE RECOLECCIÓN
             
-            # Eliminar los libros recogidos DE AMBOS GRUPOS
             if libros_recogidos:
                 self.nivel.grupo_coleccionables.remove(libros_recogidos)
                 self.todas.remove(libros_recogidos)
-            # --- FIN DE LÓGICA DE COLECCIÓN ---
 
-            # ---Lógica de Daño ---
-            # (Solo comprobar si el jugador no está invencible)
+            # ✅ Lógica de daño - ACTUALIZADA para usar hitbox
             if not self.personaje.invencible:
                 colisiones_trampas = []
                 for trampa in self.nivel.grupo_trampas:
-                    if self.personaje.hitbox.colliderect(trampa.rect):
-                        colisiones_trampas.append(trampa)
+                    # Usar hitbox si existe, sino usar rect
+                    if hasattr(trampa, 'hitbox'):
+                        if self.personaje.hitbox.colliderect(trampa.hitbox):
+                            colisiones_trampas.append(trampa)
+                    else:
+                        if self.personaje.hitbox.colliderect(trampa.rect):
+                            colisiones_trampas.append(trampa)
                 
                 if colisiones_trampas:
-                    # Llamamos a 'recibir_daño' (él ya gestiona la invencibilidad)
-                    self.personaje.recibir_daño(1) 
+                    self.personaje.recibir_daño(1)
+            
+            # Verificar si llegó al punto final
+            for punto_final in self.nivel.grupo_punto_final:
+                if self.personaje.hitbox.colliderect(punto_final.rect):
+                    if not self.cargar_siguiente_nivel():
+                        corriendo = False
+                        continue
 
-
-            # Dibujar fondo
+            # Dibujar todo
             self.pantalla.blit(self.fondo, (0, 0))
-            
-            # Dibujar nivel
-            self.nivel.dibujar(self.pantalla)
-            
-            # Debug: Dibujar hitboxes (comentar para versión final)
-            # pygame.draw.rect(self.pantalla, (255, 0, 0), self.personaje.rect, 2)
-            # pygame.draw.rect(self.pantalla, (0, 255, 0), self.personaje.hitbox, 2)
-            
-            # Dibujar jugador
+            self.nivel.dibujar(self.pantalla, debug=self.debug_mode)
             self.todas.draw(self.pantalla)
             
-            # Mostrar FPS (opcional)
+            # ✅ Dibujar hitbox del personaje en modo debug
+            if self.debug_mode and hasattr(self.personaje, 'hitbox'):
+                pygame.draw.rect(self.pantalla, (0, 255, 255), self.personaje.hitbox, 2)  # Cian
+                # Rect completo del personaje (amarillo)
+                pygame.draw.rect(self.pantalla, (255, 255, 0), self.personaje.rect, 2)
+            
+            # HUD
             fuente = pygame.font.Font(None, 30)
             fps_texto = fuente.render(f"FPS: {int(self.clock.get_fps())}", True, (255, 255, 255))
             self.pantalla.blit(fps_texto, (10, 10))
-
-            # ---> DIBUJAR HUD DE PUNTOS <---
-            texto_puntos = fuente.render(f"Libros: {self.personaje.puntos}", True, (255, 255, 255))
-            self.pantalla.blit(texto_puntos, (10, 40)) # Dibujarlo debajo del FPS
-            texto_vidas = fuente.render(f"Vidas: {self.personaje.vidas}", True, (255, 255, 255))
-            self.pantalla.blit(texto_vidas, (ANCHO - 150, 10))
             
+            texto_puntos = fuente.render(f"Libros: {self.personaje.puntos}", True, (255, 255, 255))
+            self.pantalla.blit(texto_puntos, (10, 40))
+            
+            # Mostrar sprite de vidas en lugar de texto
+            if self.sprites_vidas:
+                # Asegurar que las vidas estén entre 0 y 3
+                vidas_actual = max(0, min(3, self.personaje.vidas))
+                sprite_vida = self.sprites_vidas[vidas_actual]
+                self.pantalla.blit(sprite_vida, (ANCHO - 140, 10))
+            else:
+                # Fallback a texto si no cargó la imagen
+                texto_vidas = fuente.render(f"Vidas: {self.personaje.vidas}", True, (255, 255, 255))
+                self.pantalla.blit(texto_vidas, (ANCHO - 150, 10))
+            
+            # ✅ Mostrar nivel actual - A LA IZQUIERDA de las vidas y en la misma altura
+            texto_nivel = fuente.render(
+                f"Nivel {self.gestor_niveles.nivel_actual + 1}/{self.gestor_niveles.total_niveles()}", 
+                True, (255, 255, 255)
+            )
+            # Calcular posición para alinearlo a la izquierda del sprite de vidas
+            pos_x_nivel = ANCHO - 160 - texto_nivel.get_width() - 10  # 10 píxeles de separación
+            self.pantalla.blit(texto_nivel, (pos_x_nivel, 10))  # Misma altura que las vidas
+            
+            # ✅ Mostrar indicador de modo debug
+            if self.debug_mode:
+                debug_texto = fuente.render("DEBUG MODE [P para desactivar]", True, (255, 255, 0))
+                self.pantalla.blit(debug_texto, (10, 70))
             
             pygame.display.flip()
             self.clock.tick(FPS)
         
         return False
-    
+
     def ejecutar(self):
         """Método principal que controla el flujo del juego"""
         corriendo = True
@@ -235,7 +319,6 @@ class Juego:
                 corriendo = self.mostrar_menu()
             elif self.estado == 'INTRODUCCION':
                 corriendo = self.mostrar_introduccion()
-
             elif self.estado == 'JUGANDO':
                 corriendo = self.bucle_juego()
         
