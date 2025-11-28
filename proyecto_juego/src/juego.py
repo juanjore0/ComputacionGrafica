@@ -80,7 +80,7 @@ class Juego:
                 'espinas': espinas_default
             }
 
-        # ✅ Cargar sprites de vidas
+        # Cargar sprites de vidas
         print("\n═══ CARGANDO UI ═══")
         try:
             self.sprites_vidas = CargadorSprites.cargar_sprites_vidas(
@@ -91,6 +91,19 @@ class Juego:
         except Exception as e:
             print(f"❌ Error cargando sprites de vidas: {e}")
             self.sprites_vidas = None
+
+        # Cargar cartel indicador
+        print("\n═══ CARGANDO CARTEL INDICADOR ═══")
+        try:
+            self.sprites_cartel = CargadorSprites.cargar_cartel_nivel(
+                base,
+                escala=(60, 56)  # Escalado para que se vea bien
+            )
+            print(f"✓ Cartel indicador cargado")
+        except Exception as e:
+            print(f"❌ Error cargando cartel: {e}")
+            self.sprites_cartel = None
+
 
         
         # Cargar spritesheet del personaje
@@ -132,7 +145,8 @@ class Juego:
         self.nivel = Nivel(
             datos_nivel['mapa'],      # Primer argumento: mapa
             self.tiles_dict,          # Segundo argumento: tiles_dict
-            self.objetos_dict         # Tercer argumento: objetos_dict
+            self.objetos_dict,         # Tercer argumento: objetos_dict
+            self.sprites_cartel     # Cuarto argumento: sprites_cartel
         )
         
         # Usar la posición de spawn del nivel
@@ -192,7 +206,6 @@ class Juego:
             return False
         return True
 
-
     def bucle_juego(self):
         """Bucle principal del juego"""
         corriendo = True
@@ -238,6 +251,12 @@ class Juego:
             if libros_recogidos:
                 self.nivel.grupo_coleccionables.remove(libros_recogidos)
                 self.todas.remove(libros_recogidos)
+                
+                # ✅ Verificar si se recogieron todos los libros
+                if len(self.nivel.grupo_coleccionables) == 0:
+                    if not self.nivel.cartel_encendido:  # Solo mostrar mensaje la primera vez
+                        self.nivel.cartel_encendido = True
+                        print("🎉 ¡Todos los libros recogidos! El cartel se ha encendido.")
 
             # ✅ Lógica de daño - ACTUALIZADA para usar hitbox
             if not self.personaje.invencible:
@@ -254,12 +273,24 @@ class Juego:
                 if colisiones_trampas:
                     self.personaje.recibir_daño(1)
             
-            # Verificar si llegó al punto final
+            # ✅ Verificar si llegó al punto final Y tiene todos los libros
             for punto_final in self.nivel.grupo_punto_final:
                 if self.personaje.hitbox.colliderect(punto_final.rect):
-                    if not self.cargar_siguiente_nivel():
-                        corriendo = False
-                        continue
+                    if self.nivel.cartel_encendido:  # Solo pasar si recogió todos los libros
+                        if not self.cargar_siguiente_nivel():
+                            corriendo = False
+                            continue
+                    else:
+                        # Mostrar mensaje de que faltan libros (solo una vez por contacto)
+                        if not hasattr(self, '_mostro_mensaje_libros'):
+                            self._mostro_mensaje_libros = True
+                            libros_faltantes = len(self.nivel.grupo_coleccionables)
+                            print(f"⚠️ ¡Recoge todos los libros antes de pasar! Faltan: {libros_faltantes}")
+            
+            # Resetear flag de mensaje cuando no está tocando el punto final
+            if not any(self.personaje.hitbox.colliderect(pf.rect) for pf in self.nivel.grupo_punto_final):
+                if hasattr(self, '_mostro_mensaje_libros'):
+                    delattr(self, '_mostro_mensaje_libros')
 
             # Dibujar todo
             self.pantalla.blit(self.fondo, (0, 0))
@@ -277,28 +308,27 @@ class Juego:
             fps_texto = fuente.render(f"FPS: {int(self.clock.get_fps())}", True, (255, 255, 255))
             self.pantalla.blit(fps_texto, (10, 10))
             
-            texto_puntos = fuente.render(f"Libros: {self.personaje.puntos}", True, (255, 255, 255))
-            self.pantalla.blit(texto_puntos, (10, 40))
+            # ✅ Mostrar libros restantes en lugar de puntos totales
+            libros_recogidos_total = self.nivel.total_libros - len(self.nivel.grupo_coleccionables)
+            texto_libros = fuente.render(f"Libros: {libros_recogidos_total}/{self.nivel.total_libros}", True, (255, 255, 255))
+            self.pantalla.blit(texto_libros, (10, 40))
             
-            # Mostrar sprite de vidas en lugar de texto
+            # Mostrar sprite de vidas
             if self.sprites_vidas:
-                # Asegurar que las vidas estén entre 0 y 3
                 vidas_actual = max(0, min(3, self.personaje.vidas))
                 sprite_vida = self.sprites_vidas[vidas_actual]
                 self.pantalla.blit(sprite_vida, (ANCHO - 140, 10))
             else:
-                # Fallback a texto si no cargó la imagen
                 texto_vidas = fuente.render(f"Vidas: {self.personaje.vidas}", True, (255, 255, 255))
                 self.pantalla.blit(texto_vidas, (ANCHO - 150, 10))
             
-            # ✅ Mostrar nivel actual - A LA IZQUIERDA de las vidas y en la misma altura
+            # Mostrar nivel actual
             texto_nivel = fuente.render(
                 f"Nivel {self.gestor_niveles.nivel_actual + 1}/{self.gestor_niveles.total_niveles()}", 
                 True, (255, 255, 255)
             )
-            # Calcular posición para alinearlo a la izquierda del sprite de vidas
-            pos_x_nivel = ANCHO - 160 - texto_nivel.get_width() - 10  # 10 píxeles de separación
-            self.pantalla.blit(texto_nivel, (pos_x_nivel, 10))  # Misma altura que las vidas
+            pos_x_nivel = ANCHO - 160 - texto_nivel.get_width() - 10
+            self.pantalla.blit(texto_nivel, (pos_x_nivel, 10))
             
             # ✅ Mostrar indicador de modo debug
             if self.debug_mode:
@@ -309,6 +339,7 @@ class Juego:
             self.clock.tick(FPS)
         
         return False
+
 
     def ejecutar(self):
         """Método principal que controla el flujo del juego"""

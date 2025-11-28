@@ -15,11 +15,16 @@ class Nivel:
     7 = Arbusto decorativo (sprite4) - NO colisiona
     """
     
-    def __init__(self, mapa, tiles_dict, objetos_dict):
+    def __init__(self, mapa, tiles_dict, objetos_dict, sprites_cartel=None):
         self.mapa = mapa
         self.tiles_dict = tiles_dict
         self.objetos_dict = objetos_dict
+        self.sprites_cartel = sprites_cartel
         
+        # ✅ Control de libros y cartel
+        self.total_libros = 0
+        self.cartel_encendido = False
+
         # Recortar todos los tiles
         self.tiles_recortados = {}
         for nombre, sprites in tiles_dict.items():
@@ -95,10 +100,7 @@ class Nivel:
                     tile = self.obtener_tile(celda)
                     if tile:
                         if celda == 5:  # sprite9 - plataforma de madera
-                            # Reducir la altura de colisión (ajusta este valor)
-                            altura_plataforma = 12  # Muy delgada para que el personaje pase debajo
-                            # Posicionar la colisión en la parte superior de la plataforma
-                            
+                            altura_plataforma = 12
                             plataforma = pygame.Rect(
                                 x, 
                                 y, 
@@ -106,7 +108,6 @@ class Nivel:
                                 altura_plataforma
                             )
                         else:
-                            # Plataformas normales usan el tamaño completo del tile
                             plataforma = pygame.Rect(x, y, tile.get_width(), tile.get_height())
                         
                         plataformas.append((plataforma, celda))
@@ -115,10 +116,10 @@ class Nivel:
                     if 'libro' in self.objetos_dict:
                         libro = Coleccionable(x, y, self.objetos_dict['libro'], 'libro')
                         self.grupo_coleccionables.add(libro)
+                        self.total_libros += 1  # ✅ Contar libros totales
                 
                 elif celda == 3:  # Espinas
                     if 'espinas' in self.objetos_dict:
-                        # Ajustar la posición Y para que queden pegadas al suelo
                         y_ajustada = y + tile_alto - self.objetos_dict['espinas'].get_height()
                         espinas = Trampa(x, y_ajustada, self.objetos_dict['espinas'], 'espinas')
                         self.grupo_trampas.add(espinas)
@@ -134,7 +135,7 @@ class Nivel:
         print(f"║      NIVEL CREADO                ║")
         print(f"╠══════════════════════════════════╣")
         print(f"║ Plataformas:     {len(self.plataformas):4d}          ║")
-        print(f"║ Coleccionables:  {len(self.grupo_coleccionables):4d}          ║")
+        print(f"║ Coleccionables:  {self.total_libros:4d}          ║")  # ✅ Mostrar total de libros
         print(f"║ Trampas:         {len(self.grupo_trampas):4d}          ║")
         print(f"║ Puntos finales:  {len(self.grupo_punto_final):4d}          ║")
         print(f"╚══════════════════════════════════╝")
@@ -160,6 +161,20 @@ class Nivel:
                 tile = self.obtener_tile(celda)
                 if tile:
                     pantalla.blit(tile, (x, y))
+                
+                # ✅ Dibujar el cartel en la posición del punto final (celda 4)
+                if celda == 4 and self.sprites_cartel:
+                    # Elegir el sprite según si está encendido o no
+                    if self.cartel_encendido:
+                        cartel = self.sprites_cartel['encendido']
+                    else:
+                        cartel = self.sprites_cartel['normal']
+                    
+                    # ✅ CORREGIDO: Centrar el cartel en el tile y ajustar verticalmente
+                    cartel_x = x + (tile_ancho - cartel.get_width()) // 2
+                    cartel_y = y + (tile_alto - cartel.get_height()) // 2
+                    
+                    pantalla.blit(cartel, (cartel_x, cartel_y))
         
         # ✅ Modo DEBUG - Dibujar hitboxes
         if debug:
@@ -167,7 +182,6 @@ class Nivel:
             for plataforma, tipo in self.plataformas_con_tipo:
                 if tipo == 5:  # Plataformas de madera en AZUL
                     pygame.draw.rect(pantalla, (0, 150, 255), plataforma, 2)
-                    # Rellenar semi-transparente para ver mejor
                     superficie = pygame.Surface((plataforma.width, plataforma.height))
                     superficie.set_alpha(80)
                     superficie.fill((0, 150, 255))
@@ -183,3 +197,7 @@ class Nivel:
             # Dibujar hitboxes de coleccionables (VERDE)
             for coleccionable in self.grupo_coleccionables:
                 pygame.draw.rect(pantalla, (0, 255, 0), coleccionable.rect, 2)
+            
+            # ✅ Dibujar hitboxes del punto final (AMARILLO)
+            for punto_final in self.grupo_punto_final:
+                pygame.draw.rect(pantalla, (255, 255, 0), punto_final.rect, 2)

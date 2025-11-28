@@ -172,6 +172,49 @@ class CargadorSprites:
                 placeholder.fill((100, 100, 100))
                 sprites_vidas[i] = placeholder
             return sprites_vidas
+        
+    @staticmethod
+    def cargar_cartel_nivel(base_path='', escala=None):
+        """
+        Carga los sprites del cartel indicador (normal y encendido)
+        
+        Args:
+            base_path: Ruta base del proyecto (opcional)
+            escala: Tupla (ancho, alto) opcional para redimensionar
+        
+        Returns:
+            Diccionario con los sprites del cartel {'normal': sprite, 'encendido': sprite}
+        """
+        try:
+            ruta_indicador = os.path.join(base_path, 'assets', 'images', 'tiles', 'indicador.png')
+            spritesheet = pygame.image.load(ruta_indicador).convert_alpha()
+            
+            # Coordenadas de cada estado del cartel
+            cartel_normal = spritesheet.subsurface(pygame.Rect(5, 5, 30, 28))
+            cartel_encendido = spritesheet.subsurface(pygame.Rect(40, 5, 30, 28))
+            
+            # Escalar si se especificó
+            if escala:
+                cartel_normal = pygame.transform.scale(cartel_normal, escala)
+                cartel_encendido = pygame.transform.scale(cartel_encendido, escala)
+            
+            carteles = {
+                'normal': cartel_normal,
+                'encendido': cartel_encendido
+            }
+            
+            print(f"✓ Carteles indicadores cargados: 30x28")
+            return carteles
+            
+        except Exception as e:
+            print(f"⚠ Error cargando cartel indicador: {e}")
+            # Crear placeholders
+            cartel_normal = pygame.Surface((30, 28))
+            cartel_normal.fill((100, 100, 100))
+            cartel_encendido = pygame.Surface((30, 28))
+            cartel_encendido.fill((0, 255, 0))
+            return {'normal': cartel_normal, 'encendido': cartel_encendido}
+
 
     @staticmethod
     def cargar_animaciones_jugador(ruta_spritesheet, escala=(56, 56)):
