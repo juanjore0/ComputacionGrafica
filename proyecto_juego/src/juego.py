@@ -1,11 +1,10 @@
 import pygame
 import os
-from constantes import ANCHO, ALTO, FPS
-from nivel import Nivel
-from personaje import Personaje
+from constantes import ANCHO, ALTO, FPS, BLANCO
 from cargador_sprites import CargadorSprites
 from menu import Menu
 from introduccion import Introduccion
+from gestor_niveles import GestorNiveles
 
 
 class Juego:
@@ -14,9 +13,8 @@ class Juego:
         self.pantalla = pygame.display.set_mode((ANCHO, ALTO))
         pygame.display.set_caption('Can You Go?')
         self.clock = pygame.time.Clock()
-        self.estado = 'MENU'  # Estados: MENU, JUGANDO, PAUSA, GAME_OVER
-
-      
+        self.estado = 'MENU'  # Estados: MENU, INTRODUCCION, JUGANDO, NIVEL_COMPLETADO, VICTORIA
+        
         # Rutas
         base = os.path.dirname(os.path.abspath(__file__))
         ruta_fondo = os.path.join(base, '..', 'assets', 'images', 'backgrounds', 'Background.png')
@@ -40,7 +38,6 @@ class Juego:
                 print("✓ Suelo cargado correctamente (sprite0)")
             else:
                 raise Exception("No se encontró 'sprite0' en los elementos sólidos")
-
         except Exception as e:
             print(f"Error cargando suelo: {e}")
             self.tile_suelo = pygame.Surface((95, 47))
@@ -56,53 +53,33 @@ class Juego:
             if self.animaciones:
                 self.pj_imagen = self.animaciones['idle'][0]
                 print("✓ Animaciones cargadas correctamente")
-                print(f"  Animaciones disponibles: {list(self.animaciones.keys())}")
             else:
                 raise Exception("No se pudieron cargar las animaciones")
-                
         except Exception as e:
             print(f"Error cargando sprite: {e}")
             self.pj_imagen = pygame.Surface((112, 112))
             self.pj_imagen.fill((0, 255, 0))
             self.animaciones = None
         
-        # Inicializar nivel y personaje
-        self.inicializar_nivel()
+        # Inicializar gestor de niveles (se crea después)
+        self.gestor_niveles = None
         
-        # Crear menú
+        # Crear menú e introducción
         self.menu = Menu(self.pantalla)
         self.introduccion = Introduccion(self.pantalla)
-
-    def inicializar_nivel(self):
-        """Inicializa o reinicia el nivel del juego"""
-        # Mapa simplificado
-        self.mapa = [
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,1,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [0,1,1,1,1,1,1,1,1],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,1,0,0],
-            [0,0,0,0,0,0,0,0,0],
-            [0,0,0,0,0,1,0,0,0],
-            [0,0,0,0,0,0,0,0,1],
-            [0,0,0,0,0,0,0,0,1],
-            [1,1,1,1,1,1,1,1,1],
-        ]
-        self.nivel = Nivel(self.mapa, self.tile_suelo)
         
-        # Calcular posición inicial
-        tile_alto = self.tile_suelo.get_height()
-        posicion_y_segura = 3 * tile_alto - 70
-        
-        self.personaje = Personaje(100, posicion_y_segura, self.pj_imagen, self.animaciones)
-        self.todas = pygame.sprite.Group(self.personaje)
-        self.todas.add(self.nivel.grupo_coleccionables)
-        self.todas.add(self.nivel.grupo_trampas)
-        
-        print(f"Nivel inicializado - Personaje en: ({self.personaje.rect.x}, {self.personaje.rect.y})")
+        # Fuente para textos
+        self.fuente = pygame.font.Font(None, 36)
+        self.fuente_grande = pygame.font.Font(None, 72)
+    
+    def inicializar_juego(self):
+        """Inicializa el gestor de niveles y empieza desde el nivel 1"""
+        self.gestor_niveles = GestorNiveles(
+            tile_suelo=self.tile_suelo,
+            imagen_pj=self.pj_imagen,
+            animaciones_pj=self.animaciones
+        )
+        print("🎮 Juego inicializado correctamente")
     
     def mostrar_menu(self):
         """Muestra el menú principal"""
@@ -110,17 +87,15 @@ class Juego:
         
         if resultado == 'jugar':
             self.estado = 'INTRODUCCION'
-       
             return True
         elif resultado == 'salir':
             return False
         
         return True
-
-    # Añade un nuevo método para mostrar la introducción:
+    
     def mostrar_introduccion(self):
         """Muestra la introducción animada"""
-        self.introduccion.activo = True  # Resetear estado
+        self.introduccion.activo = True
         self.introduccion.tiempo_transcurrido = 0
         self.introduccion.fade_in = 0
         
@@ -128,13 +103,121 @@ class Juego:
         
         if resultado == 'jugar':
             self.estado = 'JUGANDO'
-            self.inicializar_nivel()  # Inicializar nivel después de la intro
+            self.inicializar_juego()
             return True
         elif resultado == 'salir':
             return False
         return True
-
-
+    
+    def mostrar_pantalla_nivel_completado(self):
+        """Muestra una pantalla de transición entre niveles"""
+        esperando = True
+        tiempo_inicio = pygame.time.get_ticks()
+        tiempo_minimo = 2000  # 2 segundos mínimo
+        
+        while esperando:
+            tiempo_actual = pygame.time.get_ticks()
+            tiempo_transcurrido = tiempo_actual - tiempo_inicio
+            
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return 'salir'
+                
+                # Permitir saltar después del tiempo mínimo
+                if tiempo_transcurrido > tiempo_minimo:
+                    if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                        esperando = False
+            
+            # Auto-avanzar después de 5 segundos
+            if tiempo_transcurrido > 5000:
+                esperando = False
+            
+            # Dibujar pantalla
+            self.pantalla.blit(self.fondo, (0, 0))
+            
+            # Título
+            texto_titulo = self.fuente_grande.render("¡NIVEL COMPLETADO!", True, BLANCO)
+            rect_titulo = texto_titulo.get_rect(center=(ANCHO // 2, ALTO // 2 - 50))
+            self.pantalla.blit(texto_titulo, rect_titulo)
+            
+            # Estadísticas
+            texto_puntos = self.fuente.render(
+                f"Libros recogidos: {self.gestor_niveles.personaje.puntos // 100}", 
+                True, BLANCO
+            )
+            rect_puntos = texto_puntos.get_rect(center=(ANCHO // 2, ALTO // 2 + 20))
+            self.pantalla.blit(texto_puntos, rect_puntos)
+            
+            texto_vidas = self.fuente.render(
+                f"Vidas restantes: {self.gestor_niveles.personaje.vidas}", 
+                True, BLANCO
+            )
+            rect_vidas = texto_vidas.get_rect(center=(ANCHO // 2, ALTO // 2 + 60))
+            self.pantalla.blit(texto_vidas, rect_vidas)
+            
+            # Instrucción
+            if tiempo_transcurrido > tiempo_minimo:
+                texto_continuar = self.fuente.render(
+                    "Presiona cualquier tecla para continuar...", 
+                    True, BLANCO
+                )
+                texto_continuar.set_alpha(int(abs(pygame.math.Vector2(1, 0).rotate(tiempo_transcurrido * 0.2).x) * 255))
+                rect_continuar = texto_continuar.get_rect(center=(ANCHO // 2, ALTO - 100))
+                self.pantalla.blit(texto_continuar, rect_continuar)
+            
+            pygame.display.flip()
+            self.clock.tick(FPS)
+        
+        return 'continuar'
+    
+    def mostrar_pantalla_victoria(self):
+        """Muestra la pantalla de victoria final"""
+        esperando = True
+        
+        while esperando:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    return 'salir'
+                if event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                    esperando = False
+            
+            # Dibujar pantalla
+            self.pantalla.blit(self.fondo, (0, 0))
+            
+            # Título
+            texto_titulo = self.fuente_grande.render("¡VICTORIA!", True, (255, 215, 0))
+            rect_titulo = texto_titulo.get_rect(center=(ANCHO // 2, ALTO // 2 - 80))
+            self.pantalla.blit(texto_titulo, rect_titulo)
+            
+            # Mensaje
+            texto_mensaje = self.fuente.render(
+                "¡Has completado todos los niveles!", 
+                True, BLANCO
+            )
+            rect_mensaje = texto_mensaje.get_rect(center=(ANCHO // 2, ALTO // 2 - 10))
+            self.pantalla.blit(texto_mensaje, rect_mensaje)
+            
+            # Puntos finales
+            texto_puntos = self.fuente.render(
+                f"Puntos totales: {self.gestor_niveles.personaje.puntos}", 
+                True, BLANCO
+            )
+            rect_puntos = texto_puntos.get_rect(center=(ANCHO // 2, ALTO // 2 + 40))
+            self.pantalla.blit(texto_puntos, rect_puntos)
+            
+            # Instrucción
+            texto_continuar = self.fuente.render(
+                "Presiona cualquier tecla para volver al menú", 
+                True, BLANCO
+            )
+            rect_continuar = texto_continuar.get_rect(center=(ANCHO // 2, ALTO - 80))
+            self.pantalla.blit(texto_continuar, rect_continuar)
+            
+            pygame.display.flip()
+            self.clock.tick(FPS)
+        
+        return 'menu'
+    
     def bucle_juego(self):
         """Bucle principal del juego"""
         corriendo = True
@@ -152,77 +235,80 @@ class Juego:
                         resultado = self.mostrar_menu()
                         if not resultado:
                             corriendo = False
-
-
-            # ---Lógica de GAME OVER ---
-            # Comprobar si el jugador ha perdido
-            # (El 'not' es para que espere a que termine la anim de muerte)
-            if self.personaje.vidas <= 0 and not self.personaje.animacion_bloqueada:
-                print("Volviendo al menú por Game Over")
-                self.estado = 'MENU' # Vuelve al menú principal
+            
+            # Obtener estado del juego
+            estado_juego = self.gestor_niveles.obtener_estado_juego()
+            
+            # Manejar según el estado
+            if estado_juego == 'game_over':
+                print("🔄 Volviendo al menú por Game Over")
+                self.estado = 'MENU'
                 self.menu.activo = True
-                corriendo = False # Sale del bucle de juego
-                continue # Saltar el resto del bucle
-
-            # Actualizar
-            # (Se actualiza la anim de muerte, pero no los controles)
-            # Actualizar
-            self.personaje.update(self.nivel.plataformas)
-            # --> LÓGICA DE COLECCIÓN <---
-            libros_recogidos = []
-            for libro in self.nivel.grupo_coleccionables:
-                if self.personaje.hitbox.colliderect(libro.rect):
-                    self.personaje.puntos += libro.valor
-                    libros_recogidos.append(libro)
-                    print(f"¡Libro recogido! Puntos: {self.personaje.puntos}")
-                    # ESPACIO PARA EL SONIDO DE RECOLECCIÓN
+                corriendo = False
+                continue
             
-            # Eliminar los libros recogidos DE AMBOS GRUPOS
-            if libros_recogidos:
-                self.nivel.grupo_coleccionables.remove(libros_recogidos)
-                self.todas.remove(libros_recogidos)
-            # --- FIN DE LÓGICA DE COLECCIÓN ---
-
-            # ---Lógica de Daño ---
-            # (Solo comprobar si el jugador no está invencible)
-            if not self.personaje.invencible:
-                colisiones_trampas = []
-                for trampa in self.nivel.grupo_trampas:
-                    if self.personaje.hitbox.colliderect(trampa.rect):
-                        colisiones_trampas.append(trampa)
+            elif estado_juego == 'nivel_completado':
+                # Mostrar pantalla de nivel completado
+                resultado = self.mostrar_pantalla_nivel_completado()
                 
-                if colisiones_trampas:
-                    # Llamamos a 'recibir_daño' (él ya gestiona la invencibilidad)
-                    self.personaje.recibir_daño(1) 
-
-
-            # Dibujar fondo
-            self.pantalla.blit(self.fondo, (0, 0))
+                if resultado == 'salir':
+                    corriendo = False
+                    continue
+                
+                # Intentar cargar el siguiente nivel
+                if not self.gestor_niveles.siguiente_nivel():
+                    # No hay más niveles, mostrar victoria
+                    self.estado = 'VICTORIA'
+                    resultado = self.mostrar_pantalla_victoria()
+                    
+                    if resultado == 'menu':
+                        self.estado = 'MENU'
+                        self.menu.activo = True
+                        corriendo = False
+                    else:
+                        corriendo = False
+                    continue
             
-            # Dibujar nivel
-            self.nivel.dibujar(self.pantalla)
-            
-            # Debug: Dibujar hitboxes (comentar para versión final)
-            # pygame.draw.rect(self.pantalla, (255, 0, 0), self.personaje.rect, 2)
-            # pygame.draw.rect(self.pantalla, (0, 255, 0), self.personaje.hitbox, 2)
-            
-            # Dibujar jugador
-            self.todas.draw(self.pantalla)
-            
-            # Mostrar FPS (opcional)
-            fuente = pygame.font.Font(None, 30)
-            fps_texto = fuente.render(f"FPS: {int(self.clock.get_fps())}", True, (255, 255, 255))
-            self.pantalla.blit(fps_texto, (10, 10))
-
-            # ---> DIBUJAR HUD DE PUNTOS <---
-            texto_puntos = fuente.render(f"Libros: {self.personaje.puntos}", True, (255, 255, 255))
-            self.pantalla.blit(texto_puntos, (10, 40)) # Dibujarlo debajo del FPS
-            texto_vidas = fuente.render(f"Vidas: {self.personaje.vidas}", True, (255, 255, 255))
-            self.pantalla.blit(texto_vidas, (ANCHO - 150, 10))
-            
-            
-            pygame.display.flip()
-            self.clock.tick(FPS)
+            elif estado_juego == 'jugando':
+                # Actualizar
+                self.gestor_niveles.actualizar()
+                
+                # Dibujar fondo
+                self.pantalla.blit(self.fondo, (0, 0))
+                
+                # Dibujar nivel
+                self.gestor_niveles.dibujar(self.pantalla)
+                
+                # HUD
+                fuente = pygame.font.Font(None, 30)
+                
+                # FPS
+                fps_texto = fuente.render(f"FPS: {int(self.clock.get_fps())}", True, BLANCO)
+                self.pantalla.blit(fps_texto, (10, 10))
+                
+                # Nivel actual
+                nivel_texto = fuente.render(
+                    f"Nivel: {self.gestor_niveles.nivel_actual_numero}/3", 
+                    True, BLANCO
+                )
+                self.pantalla.blit(nivel_texto, (10, 40))
+                
+                # Puntos
+                texto_puntos = fuente.render(
+                    f"Libros: {self.gestor_niveles.personaje.puntos // 100}", 
+                    True, BLANCO
+                )
+                self.pantalla.blit(texto_puntos, (10, 70))
+                
+                # Vidas
+                texto_vidas = fuente.render(
+                    f"Vidas: {self.gestor_niveles.personaje.vidas}", 
+                    True, BLANCO
+                )
+                self.pantalla.blit(texto_vidas, (ANCHO - 150, 10))
+                
+                pygame.display.flip()
+                self.clock.tick(FPS)
         
         return False
     
@@ -235,7 +321,6 @@ class Juego:
                 corriendo = self.mostrar_menu()
             elif self.estado == 'INTRODUCCION':
                 corriendo = self.mostrar_introduccion()
-
             elif self.estado == 'JUGANDO':
                 corriendo = self.bucle_juego()
         
