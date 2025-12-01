@@ -43,7 +43,7 @@ class Personaje(pygame.sprite.Sprite):
         self.vel_y = 0
         self.gravedad = 0.8
         self.fuerza_salto = -14
-        self.velocidad = 4
+        self.velocidad = 4  # 
         self.en_suelo = False
         
 
@@ -177,17 +177,14 @@ class Personaje(pygame.sprite.Sprite):
         self.en_suelo = False
         self.colision_vertical(plataformas)
         
-        # Límites de pantalla
+        #  SOLO HORIZONTALES (no resetear Y)
         if self.rect.left < 0:
             self.rect.left = 0
             self.actualizar_hitbox()
         if self.rect.right > ANCHO:
             self.rect.right = ANCHO
             self.actualizar_hitbox()
-        if self.rect.top > ALTO:
-            self.rect.y = 0
-            self.vel_y = 0
-            self.actualizar_hitbox()
+    
         
         # Actualizar animación
         self.actualizar_animacion()
@@ -274,7 +271,7 @@ class Personaje(pygame.sprite.Sprite):
         if self.contador_frames >= self.velocidad_animacion:
             self.contador_frames = 0
             
-            # Comprobar si es una animación estática Y está en el último frame
+            # Comprobar si es una animación está tica Y está en el último frame
             if self.animacion_actual in animaciones_estaticas and self.frame_actual == frames_disponibles - 1:
                 pass # No hacer nada, quedarse en el último frame
             else:

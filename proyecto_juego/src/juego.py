@@ -6,9 +6,7 @@ from personaje import Personaje
 from cargador_sprites import CargadorSprites
 from menu import Menu
 from introduccion import Introduccion
-from niveles import GestorNiveles
-
-
+from gestor_niveles import GestorNiveles
 
 class Juego:
     def __init__(self):
@@ -18,8 +16,11 @@ class Juego:
         self.clock = pygame.time.Clock()
         self.estado = 'MENU'
         
-        # ✅ Variable para activar/desactivar debug
+        # Variable para activar/desactivar debug
         self.debug_mode = False  # Empieza desactivado
+
+        #  VIDAS GLOBALES (se mantienen entre niveles)
+        self.vidas_globales = 3
 
         # Gestor de niveles
         self.gestor_niveles = GestorNiveles()
@@ -39,7 +40,7 @@ class Juego:
             self.fondo.fill((40, 70, 120))
         
         # Cargar TODOS los tiles
-        print("\n═══ CARGANDO TILES ═══")
+        print("\n╔══ CARGANDO TILES ══╗")
         try:
             self.tiles_dict = CargadorSprites.cargar_elementos_solidos(
                 ruta_tiles, 
@@ -53,13 +54,12 @@ class Juego:
 
 
         except Exception as e:
-            print(f"❌ Error cargando tiles: {e}")
+            print(f"✗ Error cargando tiles: {e}")
             tile_default = pygame.Surface((95, 47))
             tile_default.fill((150, 110, 40))
             self.tiles_dict = {'sprite0': [tile_default]}
         
-        # ✅ IMPORTANTE: Cargar objetos del juego (libros, espinas, etc.)
-        print("\n═══ CARGANDO OBJETOS ═══")
+        print("\n╔══ CARGANDO OBJETOS ══╗")
         try:
             self.objetos_dict = CargadorSprites.cargar_objetos_juego(base)
             
@@ -69,7 +69,7 @@ class Juego:
                 raise Exception("No se pudieron cargar los objetos")
         
         except Exception as e:
-            print(f"❌ Error cargando objetos: {e}")
+            print(f"✗ Error cargando objetos: {e}")
             # Crear objetos por defecto
             libro_default = pygame.Surface((40, 40))
             libro_default.fill((255, 0, 255))
@@ -81,7 +81,7 @@ class Juego:
             }
 
         # Cargar sprites de vidas
-        print("\n═══ CARGANDO UI ═══")
+        print("\n╔══ CARGANDO UI ══╗")
         try:
             self.sprites_vidas = CargadorSprites.cargar_sprites_vidas(
                 base, 
@@ -89,11 +89,11 @@ class Juego:
             )
             print(f"✓ Sprites de vidas cargados")
         except Exception as e:
-            print(f"❌ Error cargando sprites de vidas: {e}")
+            print(f"✗ Error cargando sprites de vidas: {e}")
             self.sprites_vidas = None
 
         # Cargar cartel indicador
-        print("\n═══ CARGANDO CARTEL INDICADOR ═══")
+        print("\n╔══ CARGANDO CARTEL INDICADOR ══╗")
         try:
             self.sprites_cartel = CargadorSprites.cargar_cartel_nivel(
                 base,
@@ -101,13 +101,12 @@ class Juego:
             )
             print(f"✓ Cartel indicador cargado")
         except Exception as e:
-            print(f"❌ Error cargando cartel: {e}")
+            print(f"✗ Error cargando cartel: {e}")
             self.sprites_cartel = None
 
-
-        
+    
         # Cargar spritesheet del personaje
-        print("\n═══ CARGANDO PERSONAJE ═══")
+        print("\n╔══ CARGANDO PERSONAJE ══╗")
         try:
             self.animaciones = CargadorSprites.cargar_animaciones_jugador(
                 ruta_personaje, 
@@ -121,7 +120,7 @@ class Juego:
                 raise Exception("No se pudieron cargar las animaciones")
                 
         except Exception as e:
-            print(f"❌ Error cargando sprite: {e}")
+            print(f"✗ Error cargando sprite: {e}")
             self.pj_imagen = pygame.Surface((112, 112))
             self.pj_imagen.fill((0, 255, 0))
             self.animaciones = None
@@ -134,7 +133,7 @@ class Juego:
         self.introduccion = Introduccion(self.pantalla)
 
 
-    def inicializar_nivel(self):
+    def inicializar_nivel(self, restaurar_vidas=False):
         """Inicializa o reinicia el nivel actual"""
         datos_nivel = self.gestor_niveles.obtener_nivel()
         
@@ -153,27 +152,64 @@ class Juego:
         spawn_x = datos_nivel.get('spawn_x', 100)
         spawn_y = datos_nivel.get('spawn_y', 300)
         
+        # Guardar posición de spawn para respawn
+        self.spawn_x = spawn_x
+        self.spawn_y = spawn_y
+        
         self.personaje = Personaje(spawn_x, spawn_y, self.pj_imagen, self.animaciones)
+        
+        # Asignar vidas globales al personaje
+        if restaurar_vidas:
+            self.vidas_globales = 3  # Restaurar vidas al inicio del juego
+        self.personaje.vidas = self.vidas_globales
+        
         self.todas = pygame.sprite.Group(self.personaje)
         self.todas.add(self.nivel.grupo_coleccionables)
         self.todas.add(self.nivel.grupo_trampas)
         self.todas.add(self.nivel.grupo_punto_final)
         
-        print(f"\n╔══════════════════════════════════════════════╗")
+        print(f"\n╔═══════════════════════════════════════════════╗")
         print(f"║  NIVEL {self.gestor_niveles.nivel_actual + 1}/{self.gestor_niveles.total_niveles()}: {datos_nivel['nombre']:30s} ║")
         print(f"║  Spawn: ({spawn_x}, {spawn_y})                     ║")
-        print(f"╚══════════════════════════════════════════════╝\n")
+        print(f"║  Vidas: {self.vidas_globales}/3                              ║")
+        print(f"╚═══════════════════════════════════════════════╝\n")
+    
+    def respawn_personaje(self):
+        """Reaparece el personaje en el punto de inicio del nivel"""
+        print(f"💀 ¡Respawneando! Vidas restantes: {self.vidas_globales}")
+        
+        # Restaurar posición
+        self.personaje.rect.x = self.spawn_x
+        self.personaje.rect.y = self.spawn_y
+        self.personaje.actualizar_hitbox()
+        
+        # Resetear física
+        self.personaje.vel_x = 0
+        self.personaje.vel_y = 0
+        self.personaje.en_suelo = False
+        
+        # Resetear animación
+        self.personaje.animacion_actual = 'idle'
+        self.personaje.frame_actual = 0
+        self.personaje.animacion_bloqueada = False
+        
+        # Dar invencibilidad temporal
+        self.personaje.invencible = True
+        self.personaje.tiempo_invencible = pygame.time.get_ticks()
     
     def cargar_siguiente_nivel(self):
         """Carga el siguiente nivel si existe"""
         if self.gestor_niveles.siguiente_nivel():
             print("\n🎉 ¡NIVEL COMPLETADO! Cargando siguiente nivel...")
+            # Mantener vidas al pasar de nivel
+            self.vidas_globales = self.personaje.vidas
             self.inicializar_nivel()
             return True
         else:
             print("\n🏆 ¡FELICIDADES! ¡Has completado todos los niveles!")
             self.estado = 'MENU'
             self.gestor_niveles.reiniciar_nivel()
+            self.vidas_globales = 3  # Restaurar vidas para la próxima partida
             return False
     
     def mostrar_menu(self):
@@ -183,6 +219,7 @@ class Juego:
         if resultado == 'jugar':
             self.estado = 'INTRODUCCION'
             self.gestor_niveles.reiniciar_nivel()
+            self.vidas_globales = 3  # Reiniciar vidas al empezar nueva partida
             return True
         elif resultado == 'salir':
             return False
@@ -200,7 +237,7 @@ class Juego:
         
         if resultado == 'jugar':
             self.estado = 'JUGANDO'
-            self.inicializar_nivel()
+            self.inicializar_nivel(restaurar_vidas=True)  # Restaurar vidas al empezar
             return True
         elif resultado == 'salir':
             return False
@@ -223,22 +260,41 @@ class Juego:
                         if not resultado:
                             corriendo = False
                     
-                    # ✅ Presionar P para activar/desactivar debug
+                    # Presionar P para activar/desactivar debug
                     if event.key == pygame.K_p:
                         self.debug_mode = not self.debug_mode
-                        print(f"🔍 Debug mode: {'ON ✅' if self.debug_mode else 'OFF ❌'}")
+                        print(f"🔍 Debug mode: {'ON ' if self.debug_mode else 'OFF ✗'}")
 
-            # Lógica de GAME OVER
+            # SOLO UNA LLAMADA A UPDATE
+            self.personaje.update(self.nivel.plataformas)
+            
+            # Detectar caída al vacío DESPUÉS de update
+            if self.personaje.rect.top > ALTO:
+                self.vidas_globales -= 1
+                self.personaje.vidas = self.vidas_globales
+                
+                print(f"💀 ¡Caída al vacío! Vidas restantes: {self.vidas_globales}")
+                
+                if self.vidas_globales > 0:
+                    self.respawn_personaje()
+                else:
+                    print("💀 GAME OVER - Sin vidas")
+                    self.estado = 'MENU'
+                    self.menu.activo = True
+                    self.gestor_niveles.reiniciar_nivel()
+                    self.vidas_globales = 3
+                    corriendo = False
+                    continue
+
+            # Lógica de GAME OVER por animación de muerte
             if self.personaje.vidas <= 0 and not self.personaje.animacion_bloqueada:
                 print("Volviendo al menú por Game Over")
                 self.estado = 'MENU'
                 self.menu.activo = True
                 self.gestor_niveles.reiniciar_nivel()
+                self.vidas_globales = 3
                 corriendo = False
                 continue
-
-            # Actualizar personaje
-            self.personaje.update(self.nivel.plataformas)
             
             # Lógica de colección de libros
             libros_recogidos = []
@@ -252,13 +308,13 @@ class Juego:
                 self.nivel.grupo_coleccionables.remove(libros_recogidos)
                 self.todas.remove(libros_recogidos)
                 
-                # ✅ Verificar si se recogieron todos los libros
+                # Verificar si se recogieron todos los libros
                 if len(self.nivel.grupo_coleccionables) == 0:
                     if not self.nivel.cartel_encendido:  # Solo mostrar mensaje la primera vez
                         self.nivel.cartel_encendido = True
                         print("🎉 ¡Todos los libros recogidos! El cartel se ha encendido.")
 
-            # ✅ Lógica de daño - ACTUALIZADA para usar hitbox
+            #  Lógica de daño - ACTUALIZADA para usar hitbox
             if not self.personaje.invencible:
                 colisiones_trampas = []
                 for trampa in self.nivel.grupo_trampas:
@@ -272,8 +328,10 @@ class Juego:
                 
                 if colisiones_trampas:
                     self.personaje.recibir_daño(1)
+                    #  Actualizar vidas globales cuando recibe daño
+                    self.vidas_globales = self.personaje.vidas
             
-            # ✅ Verificar si llegó al punto final Y tiene todos los libros
+            #  Verificar si llegó al punto final Y tiene todos los libros
             for punto_final in self.nivel.grupo_punto_final:
                 if self.personaje.hitbox.colliderect(punto_final.rect):
                     if self.nivel.cartel_encendido:  # Solo pasar si recogió todos los libros
@@ -297,7 +355,7 @@ class Juego:
             self.nivel.dibujar(self.pantalla, debug=self.debug_mode)
             self.todas.draw(self.pantalla)
             
-            # ✅ Dibujar hitbox del personaje en modo debug
+            #  Dibujar hitbox del personaje en modo debug
             if self.debug_mode and hasattr(self.personaje, 'hitbox'):
                 pygame.draw.rect(self.pantalla, (0, 255, 255), self.personaje.hitbox, 2)  # Cian
                 # Rect completo del personaje (amarillo)
@@ -308,18 +366,18 @@ class Juego:
             fps_texto = fuente.render(f"FPS: {int(self.clock.get_fps())}", True, (255, 255, 255))
             self.pantalla.blit(fps_texto, (10, 10))
             
-            # ✅ Mostrar libros restantes en lugar de puntos totales
+            #  Mostrar libros restantes en lugar de puntos totales
             libros_recogidos_total = self.nivel.total_libros - len(self.nivel.grupo_coleccionables)
             texto_libros = fuente.render(f"Libros: {libros_recogidos_total}/{self.nivel.total_libros}", True, (255, 255, 255))
             self.pantalla.blit(texto_libros, (10, 40))
             
-            # Mostrar sprite de vidas
+            #  Mostrar sprite de vidas GLOBALES
             if self.sprites_vidas:
-                vidas_actual = max(0, min(3, self.personaje.vidas))
+                vidas_actual = max(0, min(3, self.vidas_globales))
                 sprite_vida = self.sprites_vidas[vidas_actual]
                 self.pantalla.blit(sprite_vida, (ANCHO - 140, 10))
             else:
-                texto_vidas = fuente.render(f"Vidas: {self.personaje.vidas}", True, (255, 255, 255))
+                texto_vidas = fuente.render(f"Vidas: {self.vidas_globales}", True, (255, 255, 255))
                 self.pantalla.blit(texto_vidas, (ANCHO - 150, 10))
             
             # Mostrar nivel actual
@@ -330,7 +388,7 @@ class Juego:
             pos_x_nivel = ANCHO - 160 - texto_nivel.get_width() - 10
             self.pantalla.blit(texto_nivel, (pos_x_nivel, 10))
             
-            # ✅ Mostrar indicador de modo debug
+            # Mostrar debug mode activado
             if self.debug_mode:
                 debug_texto = fuente.render("DEBUG MODE [P para desactivar]", True, (255, 255, 0))
                 self.pantalla.blit(debug_texto, (10, 70))
