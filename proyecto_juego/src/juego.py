@@ -7,6 +7,7 @@ from cargador_sprites import CargadorSprites
 from menu import Menu
 from introduccion import Introduccion
 from gestor_niveles import GestorNiveles
+from cinematica import Cinematica
 
 class Juego:
     def __init__(self):
@@ -14,7 +15,7 @@ class Juego:
         self.pantalla = pygame.display.set_mode((ANCHO, ALTO))
         pygame.display.set_caption('Can You Go?')
         self.clock = pygame.time.Clock()
-        self.estado = 'MENU'
+        self.estado = 'MENU'  # Estados: 'CINEMATICA', 'MENU', 'INTRODUCCION', 'JUGANDO'
         
         # Variable para activar/desactivar debug
         self.debug_mode = False  # Empieza desactivado
@@ -130,7 +131,8 @@ class Juego:
         
         # Crear menú
         self.menu = Menu(self.pantalla)
-        self.introduccion = Introduccion(self.pantalla)
+        self.introduccion = Introduccion(self.pantalla) # La fogata
+        self.cinematica = Cinematica(self.pantalla)     # La historia del abuelo
 
 
     def inicializar_nivel(self, restaurar_vidas=False):
@@ -213,22 +215,21 @@ class Juego:
             return False
     
     def mostrar_menu(self):
-        """Muestra el menú principal"""
+        """1. Muestra el menú principal"""
         resultado = self.menu.mostrar(self.clock, FPS)
         
         if resultado == 'jugar':
             self.estado = 'INTRODUCCION'
             self.gestor_niveles.reiniciar_nivel()
-            self.vidas_globales = 3  # Reiniciar vidas al empezar nueva partida
+            self.vidas_globales = 3
             return True
         elif resultado == 'salir':
             return False
         
         return True
 
-
     def mostrar_introduccion(self):
-        """Muestra la introducción animada"""
+        """2. Muestra la escena de la fogata (Introduccion)"""
         self.introduccion.activo = True
         self.introduccion.tiempo_transcurrido = 0
         self.introduccion.fade_in = 0
@@ -236,12 +237,27 @@ class Juego:
         resultado = self.introduccion.mostrar(self.clock, FPS)
         
         if resultado == 'jugar':
-            self.estado = 'JUGANDO'
-            self.inicializar_nivel(restaurar_vidas=True)  # Restaurar vidas al empezar
+            self.estado = 'CINEMATICA'
             return True
         elif resultado == 'salir':
             return False
         return True
+
+    def mostrar_cinematica(self):
+        """3. Muestra la historia del abuelo (Cinematica)"""
+        self.cinematica.reiniciar()
+        
+        resultado = self.cinematica.mostrar(self.clock, FPS)
+        
+        if resultado == 'menu' or resultado == 'terminar': 
+            self.estado = 'JUGANDO'
+            self.inicializar_nivel(restaurar_vidas=True)
+            return True
+        elif resultado == 'salir':
+            return False
+        return True
+    
+
 
     def bucle_juego(self):
         """Bucle principal del juego"""
@@ -406,9 +422,14 @@ class Juego:
         while corriendo:
             if self.estado == 'MENU':
                 corriendo = self.mostrar_menu()
-            elif self.estado == 'INTRODUCCION':
+            
+            elif self.estado == 'INTRODUCCION': # Fogata
                 corriendo = self.mostrar_introduccion()
-            elif self.estado == 'JUGANDO':
+            
+            elif self.estado == 'CINEMATICA':   # Historia
+                corriendo = self.mostrar_cinematica()
+            
+            elif self.estado == 'JUGANDO':      # Juego
                 corriendo = self.bucle_juego()
         
         pygame.quit()
