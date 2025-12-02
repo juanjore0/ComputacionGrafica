@@ -8,6 +8,7 @@ from menu import Menu
 from introduccion import Introduccion
 from gestor_niveles import GestorNiveles
 from cinematica import Cinematica
+from cinematica_final import CinematicaFinal
 
 class Juego:
     def __init__(self):
@@ -133,6 +134,8 @@ class Juego:
         self.menu = Menu(self.pantalla)
         self.introduccion = Introduccion(self.pantalla) # La fogata
         self.cinematica = Cinematica(self.pantalla)     # La historia del abuelo
+        self.cinematica_final = CinematicaFinal(self.pantalla)
+
 
 
     def inicializar_nivel(self, restaurar_vidas=False):
@@ -208,10 +211,9 @@ class Juego:
             self.inicializar_nivel()
             return True
         else:
-            print("\n🏆 ¡FELICIDADES! ¡Has completado todos los niveles!")
-            self.estado = 'MENU'
-            self.gestor_niveles.reiniciar_nivel()
-            self.vidas_globales = 3  # Restaurar vidas para la próxima partida
+            print("\n🏆 ¡JUEGO COMPLETADO! Iniciando cinemática final...")
+            # ✅ 3. CAMBIAR A CINEMÁTICA FINAL EN VEZ DE MENÚ
+            self.estado = 'CINEMATICA_FINAL'
             return False
     
     def mostrar_menu(self):
@@ -257,7 +259,19 @@ class Juego:
             return False
         return True
     
-
+    def mostrar_cinematica_final(self):
+        """Muestra el final del juego y vuelve al menú"""
+        self.cinematica_final.reiniciar()
+        
+        # 'terminar' significa que acabó la historia
+        resultado = self.cinematica_final.mostrar(self.clock, FPS)
+        
+        if resultado == 'terminar' or resultado == 'salir':
+            self.estado = 'MENU'
+            self.gestor_niveles.reiniciar_nivel()
+            self.vidas_globales = 3
+            return True
+        return True
 
     def bucle_juego(self):
         """Bucle principal del juego"""
@@ -430,6 +444,8 @@ class Juego:
                 corriendo = self.mostrar_cinematica()
             
             elif self.estado == 'JUGANDO':      # Juego
-                corriendo = self.bucle_juego()
-        
+                corriendo = self.bucle_juego() 
+
+            elif self.estado == 'CINEMATICA_FINAL':
+                corriendo = self.mostrar_cinematica_final()
         pygame.quit()
