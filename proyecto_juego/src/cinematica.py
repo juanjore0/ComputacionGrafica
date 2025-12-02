@@ -6,55 +6,85 @@ class Cinematica:
     def __init__(self, pantalla):
         self.pantalla = pantalla
         
-        # Fuentes para el texto
         self.font_dialogo = pygame.font.Font(None, 36)
         self.font_nombre = pygame.font.Font(None, 40)
         self.font_instruccion = pygame.font.Font(None, 24)
         
-        # Cargar imagen de fondo (La fogata)
+        # --- CARGA DE IMÁGENES ---
+        self.fondos = {}
         base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ruta_imgs = os.path.join(base, 'assets', 'images', 'backgrounds')
+        
+        # Lista de claves y nombres de archivo
+        lista_imagenes = {
+            'fogata': 'intro_fogata.png',
+            'camino': 'historia_camino.png', 
+            'rio': 'historia_rio.png',       
+            'final': 'historia_final.png'    
+        }
+        
+        print("--- CARGANDO CINEMÁTICA ---")
+        for clave, nombre_archivo in lista_imagenes.items():
+            ruta = os.path.join(ruta_imgs, nombre_archivo)
+            try:
+                img = pygame.image.load(ruta).convert()
+                img = pygame.transform.scale(img, (ANCHO, ALTO))
+                self.fondos[clave] = img
+                print(f"✓ Cargado: {nombre_archivo}")
+            except Exception as e:
+                print(f"⚠ Error cargando {nombre_archivo}: {e}")
+                # Fallback: Color sólido si falta la imagen
+                surf = pygame.Surface((ANCHO, ALTO))
+                surf.fill((20, 10, 30))
+                self.fondos[clave] = surf
 
-        ruta_fondo = os.path.join(base, 'assets', 'images', 'backgrounds', 'fogata6.png')
+        self.fondo_actual = self.fondos['fogata']
         
-        try:
-            self.fondo = pygame.image.load(ruta_fondo).convert()
-            self.fondo = pygame.transform.scale(self.fondo, (ANCHO, ALTO))
-        except:
-            # Fallback: Fondo oscuro (marrón noche) si no hay imagen aún
-            self.fondo = pygame.Surface((ANCHO, ALTO))
-            self.fondo.fill((20, 10, 5)) 
-        
-        # --- DIÁLOGOS DE LA HISTORIA ---
+        # --- DIÁLOGOS ---
         self.dialogos = [
-            ("Abuelo", "Acércate a la fogata, nieto mío... La noche es fría."),
-            ("Nieto", "¡Ya voy, abuelo!"),
-            ("Nieto", "¿Qué historia nos contarás hoy?"),
-            ("Abuelo", "Je, je... Hoy te contaré sobre aquellos días lejanos..."),
-            ("Abuelo", "Cuando ir a la escuela no era tan fácil como tomar un autobús."),
-            ("Abuelo", "Era una verdadera odisea. Una aventura diaria."),
-            ("Abuelo", "Había rocas, ríos salvajes, bosques densos..."),
-            ("Abuelo", "Y yo solo era un niño, decidido a aprender."),
-            ("Abuelo", "¿Crees que podrías haberlo logrado tú?"),
-            ("Abuelo", "Vamos a averiguarlo..."),
+            # FOGATA (Índices 0, 1, 2)
+            ("Abuelo", "La fogata crepita con fuerza esta noche, ¿verdad, hijo?"), # 0
+            ("Abuelo", "Su calor... me recuerda a aquellos amaneceres helados de mi juventud."), # 1
+            ("Nieto", "¿Amaneceres, abuelo?"), # 2
+            
+            # CAMBIO A CAMINO (Índices 3, 4, 5)
+            ("Abuelo", "Sí... Cuando tenía tu edad, el mundo era muy distinto al que conoces."), # 3
+            ("Abuelo", "No había autobuses escolares, ni caminos pavimentados que facilitaran el viaje."), # 4
+            ("Abuelo", "Ir a la escuela era una auténtica batalla diaria contra la propia naturaleza."), # 5
+            
+            # CAMBIO A RÍO (Índices 6, 7)
+            ("Abuelo", "Recuerdo bosques que parecían no tener fin y ríos caudalosos que rugían con furia."), # 6
+            ("Abuelo", "Cada día era una prueba de valor y resistencia, solo por el deseo de aprender."), # 7
+            
+            # CAMBIO A FINAL (Índices 8, 9)
+            ("Abuelo", "Cierra los ojos e imagina que eres yo en aquel entonces, enfrentando lo desconocido."), # 8
+            ("Abuelo", "Dime... ¿Crees que tienes lo necesario para llegar?"), # 9
         ]
         
-        # Variables de control
+        # --- MAPA DE CAMBIOS DE FONDO ---
+        self.cambios_fondo = {
+            0: 'fogata',
+            3: 'camino',
+            6: 'rio',
+            8: 'final'
+        }
+        
         self.indice_dialogo = 0
         self.texto_actual = ""
         self.letra_indice = 0
-        self.velocidad_texto = 2  # Velocidad de escritura (más bajo es más rápido)
+        self.velocidad_texto = 2 
         self.contador_ticks = 0
         self.terminado_escribir = False
         
         self.activo = True
 
     def reiniciar(self):
-        """Reinicia la cinemática para verla desde el principio"""
         self.indice_dialogo = 0
         self.texto_actual = ""
         self.letra_indice = 0
         self.terminado_escribir = False
         self.activo = True
+        self.fondo_actual = self.fondos['fogata'] 
 
     def manejar_eventos(self):
         for event in pygame.event.get():
@@ -63,28 +93,30 @@ class Cinematica:
             
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    return 'saltar' # Opción para saltar la intro
+                    return 'saltar' 
                 
                 if event.key == pygame.K_SPACE or event.key == pygame.K_RETURN:
                     if not self.terminado_escribir:
-                        # Si no terminó de escribir, completar la frase de golpe
                         personaje, frase = self.dialogos[self.indice_dialogo]
                         self.texto_actual = frase
                         self.terminado_escribir = True
                     else:
-                        # Si ya terminó, pasar al siguiente diálogo
                         self.indice_dialogo += 1
                         self.letra_indice = 0
                         self.texto_actual = ""
                         self.terminado_escribir = False
                         
-                        # Si no hay más diálogos, terminar
                         if self.indice_dialogo >= len(self.dialogos):
                             return 'terminar'
+                        
+                        # --- VERIFICAR CAMBIO DE FONDO ---
+                        if self.indice_dialogo in self.cambios_fondo:
+                            clave_nueva = self.cambios_fondo[self.indice_dialogo]
+                            self.fondo_actual = self.fondos[clave_nueva]
+                            
         return None
 
     def actualizar(self):
-        # Lógica de máquina de escribir
         if self.indice_dialogo < len(self.dialogos):
             personaje, frase = self.dialogos[self.indice_dialogo]
             
@@ -98,12 +130,38 @@ class Cinematica:
                     else:
                         self.terminado_escribir = True
 
-    def dibujar(self):
-        self.pantalla.blit(self.fondo, (0, 0))
+    def dibujar_texto_multilinea(self, texto, x, y, max_ancho, color):
+        """Dibuja texto dividiéndolo en varias líneas si excede el ancho"""
+        palabras = texto.split(' ')
+        lineas = []
+        linea_actual = ""
         
-        # Panel de texto (fondo negro semitransparente abajo)
-        superficie_panel = pygame.Surface((ANCHO, 200))
-        superficie_panel.set_alpha(200)
+        for palabra in palabras:
+            prueba_linea = linea_actual + palabra + " "
+            ancho_linea, _ = self.font_dialogo.size(prueba_linea)
+            
+            if ancho_linea < max_ancho:
+                linea_actual = prueba_linea
+            else:
+                lineas.append(linea_actual)
+                linea_actual = palabra + " "
+        
+        lineas.append(linea_actual)
+        
+        # Dibujar cada línea
+        altura_linea = self.font_dialogo.get_linesize()
+        for i, linea in enumerate(lineas):
+            texto_surface = self.font_dialogo.render(linea, True, color)
+            self.pantalla.blit(texto_surface, (x, y + (i * altura_linea)))
+
+    def dibujar(self):
+        # Dibujar el fondo actual
+        self.pantalla.blit(self.fondo_actual, (0, 0))
+        
+        # Panel de texto más alto para acomodar varias líneas
+        altura_panel = 220
+        superficie_panel = pygame.Surface((ANCHO, altura_panel))
+        superficie_panel.set_alpha(210)
         superficie_panel.fill((0, 0, 0))
         rect_panel = superficie_panel.get_rect(bottom=ALTO)
         self.pantalla.blit(superficie_panel, rect_panel)
@@ -111,33 +169,35 @@ class Cinematica:
         if self.indice_dialogo < len(self.dialogos):
             personaje, frase = self.dialogos[self.indice_dialogo]
             
-            # Color del nombre según personaje
-            # Abuelo: Naranja cálido, Nieto: Azul claro
             color_nombre = (255, 200, 100) if personaje == "Abuelo" else (100, 200, 255)
             
-            # Dibujar Nombre
+            # Nombre
             texto_nombre = self.font_nombre.render(personaje, True, color_nombre)
-            self.pantalla.blit(texto_nombre, (50, ALTO - 180))
+            # Subimos un poco el nombre para dar espacio al texto
+            self.pantalla.blit(texto_nombre, (50, ALTO - 190))
             
-            # Dibujar Texto
-            texto_dialogo = self.font_dialogo.render(self.texto_actual, True, (255, 255, 255))
-            self.pantalla.blit(texto_dialogo, (50, ALTO - 140))
+            # --- USAR EL NUEVO DIBUJADO MULTILÍNEA ---
+            margen_x = 50
+            ancho_maximo = ANCHO - (margen_x * 2) # Margen de 50px a cada lado
+            self.dibujar_texto_multilinea(
+                self.texto_actual, 
+                margen_x, 
+                ALTO - 150, 
+                ancho_maximo, 
+                (255, 255, 255)
+            )
             
-            # Indicador de "Siguiente" (Parpadeante)
             if self.terminado_escribir:
                 if (pygame.time.get_ticks() // 500) % 2 == 0: 
-                    flecha = self.font_instruccion.render("Presiona ESPACIO para continuar ▼", True, (150, 150, 150))
-                    self.pantalla.blit(flecha, (ANCHO - 350, ALTO - 40))
+                    flecha = self.font_instruccion.render("Presiona ESPACIO ->", True, (150, 150, 150))
+                    self.pantalla.blit(flecha, (ANCHO - 250, ALTO - 40))
 
     def mostrar(self, clock, fps):
-        """Bucle principal de la cinemática"""
         while self.activo:
             accion = self.manejar_eventos()
             
-            if accion == 'salir':
-                return 'salir'
-            elif accion == 'saltar' or accion == 'terminar':
-                return 'menu' # Ir al menú principal al terminar
+            if accion == 'salir': return 'salir'
+            elif accion == 'saltar' or accion == 'terminar': return 'menu' 
             
             self.actualizar()
             self.dibujar()
