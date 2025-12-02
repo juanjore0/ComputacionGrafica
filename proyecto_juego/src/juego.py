@@ -212,7 +212,6 @@ class Juego:
             return True
         else:
             print("\n🏆 ¡JUEGO COMPLETADO! Iniciando cinemática final...")
-            # ✅ 3. CAMBIAR A CINEMÁTICA FINAL EN VEZ DE MENÚ
             self.estado = 'CINEMATICA_FINAL'
             return False
     
@@ -295,6 +294,11 @@ class Juego:
                         self.debug_mode = not self.debug_mode
                         print(f"🔍 Debug mode: {'ON ' if self.debug_mode else 'OFF ✗'}")
 
+                    if event.key == pygame.K_k and self.debug_mode:
+                        print("⏩ SALTANDO AL FINAL (Debug Mode)")
+                        self.estado = 'CINEMATICA_FINAL'
+                        return True
+
             # SOLO UNA LLAMADA A UPDATE
             self.personaje.update(self.nivel.plataformas)
             
@@ -366,8 +370,8 @@ class Juego:
                 if self.personaje.hitbox.colliderect(punto_final.rect):
                     if self.nivel.cartel_encendido:  # Solo pasar si recogió todos los libros
                         if not self.cargar_siguiente_nivel():
-                            corriendo = False
-                            continue
+                            return True
+                           
                     else:
                         # Mostrar mensaje de que faltan libros (solo una vez por contacto)
                         if not hasattr(self, '_mostro_mensaje_libros'):
