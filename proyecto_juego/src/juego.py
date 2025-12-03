@@ -13,6 +13,8 @@ from cinematica_final import CinematicaFinal
 class Juego:
     def __init__(self):
         pygame.init()
+        pygame.mixer.init()
+
         self.pantalla = pygame.display.set_mode((ANCHO, ALTO))
         pygame.display.set_caption('Can You Go?')
         self.clock = pygame.time.Clock()
@@ -33,6 +35,10 @@ class Juego:
         ruta_tiles = os.path.join(base, 'assets', 'images', 'tiles', 'tiles.png')
         ruta_personaje = os.path.join(base, 'assets', 'images', 'player', 'player.png')
         
+
+        self.ruta_musica_menu = os.path.join(base, 'assets', 'sonido.mp3')
+        self.ruta_musica_juego = os.path.join(base, 'assets', 'sonido.mp3')
+        self.musica_actual = None
         # Fondo
         try:
             self.fondo = pygame.image.load(ruta_fondo).convert()
@@ -179,6 +185,32 @@ class Juego:
         print(f"║  Vidas: {self.vidas_globales}/3                              ║")
         print(f"╚═══════════════════════════════════════════════╝\n")
     
+
+    def gestionar_musica(self):
+        """Cambia la música de fondo según el estado del juego"""
+        ruta_destino = None
+        volumen = 0.4
+
+        # Determinar qué canción debe sonar
+        if self.estado in ['MENU', 'INTRODUCCION', 'CINEMATICA', 'CINEMATICA_FINAL']:
+            ruta_destino = self.ruta_musica_menu
+        elif self.estado == 'JUGANDO':
+            ruta_destino = self.ruta_musica_juego
+            volumen = 0.3 # Un poco más bajo para no tapar efectos
+
+        # Si la canción es diferente a la actual, cambiarla
+        if ruta_destino and self.musica_actual != ruta_destino:
+            print(f"♪ Cambiando música a: {os.path.basename(ruta_destino)}")
+            try:
+                # Cargar y reproducir en bucle (-1)
+                pygame.mixer.music.load(ruta_destino)
+                pygame.mixer.music.set_volume(volumen)
+                pygame.mixer.music.play(-1)
+                self.musica_actual = ruta_destino
+            except Exception as e:
+                print(f"⚠ No se pudo cargar la música: {e}")
+                self.musica_actual = None # Para reintentar luego si se arregla
+
     def respawn_personaje(self):
         """Reaparece el personaje en el punto de inicio del nivel"""
         print(f"💀 ¡Respawneando! Vidas restantes: {self.vidas_globales}")
@@ -438,6 +470,9 @@ class Juego:
         corriendo = True
         
         while corriendo:
+
+            self.gestionar_musica()
+
             if self.estado == 'MENU':
                 corriendo = self.mostrar_menu()
             
